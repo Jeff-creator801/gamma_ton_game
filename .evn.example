@@ -1,0 +1,13 @@
+# Render environment variables (пример)
+OWNER_TON_WALLET=UQAmTM_EE8D6seecLKf-h8aXVQasliniDDQ52EvBj7PqExNr
+
+# Скопируйте полный JSON сервис-аккаунта Firebase сюда (одной строкой или с экранированными \n)
+FIREBASE_SERVICE_JSON={"type":"service_account","project_id":"gammaton-fdbfd","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"https://accounts.google.com/o/oauth2/auth","token_uri":"https://oauth2.googleapis.com/token","auth_provider_x509_cert_url":"https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url":"..."}
+
+FIREBASE_DBURL=https://gammaton-fdbfd-default-rtdb.firebaseio.com
+
+# TonAPI key для быстрого поиска транзакций (опционально, но рекомендуется)
+TONAPI_KEY=0deb985bebeb8023b954a40bdb556073bb5eaa081f5fa49a58b43ee733eb18ff
+
+# для админ-эндпоинтов
+ADMIN_SECRET=some-strong-secret
