@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: gammaton-backend
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    autoDeploy: true
+    envVars:
+      - key: OWNER_TON_WALLET
+        value: UQAmTM_EE8D6seecLKf-h8aXVQasliniDDQ52EvBj7PqExNr
+      - key: FIREBASE_SERVICE_JSON
+        sync: false
+      - key: FIREBASE_DBURL
+        value: https://gammaton-fdbfd-default-rtdb.firebaseio.com
+      - key: TONAPI_KEY
+        sync: false
+      - key: ADMIN_SECRET
+        generateValue: true
