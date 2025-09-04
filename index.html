@@ -95,11 +95,10 @@
     <section class="view" id="view-exchange">
       <div class="card">
         <h3>Обмен и Пополнение</h3>
-        <div class="muted">Курсы: 100000 γ = 1 TON | 10000 энергии = 10 TON. Пополнение: от 1 TON (комиссия 10%). Вывод: доступен сразу (комиссия 10%).</div>
-
+        <div class="muted">Курсы: 100000 γ = 1 TON | 10000 энергии = 10 γ. Пополнение: от 1 TON (комиссия 10%). Вывод: доступен сразу (комиссия 10%).</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
           <button class="btn" id="btnGammaToTon">γ → TON</button>
-          <button class="btn" id="btnEnergyToTon">Энергия → TON</button>
+          <button class="btn" id="btnEnergyToTon">Энергия → γ</button>
         </div>
       </div>
 
@@ -147,7 +146,7 @@ const OWNER_TON_WALLET = 'UQAmTM_EE8D6seecLKf-h8aXVQasliniDDQ52EvBj7PqExNr';
 
 const RATES = {
   GAMMA_TO_TON: 100000,   // 100000 γ -> 1 TON
-  ENERGY_TO_TON_PER_10K: 10 // 10000 energy -> 10 TON
+  ENERGY_TO_GAMMA_PER_10K: 10 // 10000 energy -> 10 γ
 };
 
 /* ========= BUILDINGS (только 1 уровень, можно покупать только один экземпляр каждого) ========= */
@@ -377,13 +376,13 @@ document.getElementById('btnGammaToTon').onclick = async ()=>{
 };
 
 document.getElementById('btnEnergyToTon').onclick = async ()=>{
-  const amt = +prompt('Сколько энергии обменять? (10000 энергии = 10 TON)');
+  const amt = +prompt('Сколько энергии обменять? (10000 энергии = 10 γ)');
   if(!amt || amt<=0) return;
   if((appUser.balances.energy||0) < amt) return alert('Недостаточно энергии');
   const lots = Math.floor(amt / 10000);
   if(lots <= 0) return alert('Минимум 10000 энергии');
   addEnergy(-lots * 10000);
-  addTon(lots * RATES.ENERGY_TO_TON_PER_10K);
+  addGamma(lots * RATES.ENERGY_TO_GAMMA_PER_10K);
   await userRef.update({ balances: appUser.balances });
   renderAll();
 };
