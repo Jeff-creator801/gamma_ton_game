@@ -448,7 +448,59 @@ navItems.forEach(btn=>btn.addEventListener('click',()=>{
   
 /* ========= HELPERS ========= */  
 function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')).replace(/\/$/,'') + path; }
+// Вставьте этот код в конец вашего основного <script> (перед </script>) или подключите как отдельный файл после основного скрипта.
+// Он добавит iframe-рекламу динамически и без вмешательства в остальной HTML/JS.
 
+(function insertStickyAd(){
+  try{
+    // если уже добавлен — не добавляем повторно
+    if(document.getElementById('aads-container')) return;
+
+    const ad = document.createElement('div');
+    ad.id = 'aads-container';
+    // позиционируем чуть выше навигации (nav занимает ~56-88px по стилю), чтобы навигация оставалась видимой
+    ad.style.position = 'fixed';
+    ad.style.left = '0';
+    ad.style.right = '0';
+    ad.style.bottom = '64px';
+    ad.style.zIndex = '99999';
+    ad.style.display = 'flex';
+    ad.style.justifyContent = 'center';
+    ad.style.padding = '6px 8px';
+    ad.style.pointerEvents = 'auto';
+    ad.style.background = 'transparent';
+
+    const inner = document.createElement('div');
+    inner.style.width = '100%';
+    inner.style.maxWidth = '1100px';
+    inner.style.margin = 'auto';
+    inner.style.textAlign = 'center';
+
+    const frameWrap = document.createElement('div');
+    frameWrap.id = 'frame';
+    frameWrap.style.width = '100%';
+    frameWrap.style.margin = 'auto';
+    frameWrap.style.display = 'block';
+
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('data-aa','2410989');
+    iframe.src = '//acceptable.a-ads.com/2410989/?size=Adaptive';
+    iframe.style.border = '0';
+    iframe.style.padding = '0';
+    iframe.style.width = '100%';
+    iframe.style.height = '90px';
+    iframe.style.overflow = 'hidden';
+    iframe.style.display = 'block';
+
+    frameWrap.appendChild(iframe);
+    inner.appendChild(frameWrap);
+    ad.appendChild(inner);
+
+    document.body.appendChild(ad);
+  }catch(e){
+    console.error('Ad insert failed', e);
+  }
+})();
 </script>
 
 <!-- ВСТАВЛЁННАЯ РЕКЛАМА: закреплённый снизу с iframe (без кнопки отключения) -->
