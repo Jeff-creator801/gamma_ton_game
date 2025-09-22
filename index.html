@@ -1,525 +1,442 @@
 <!doctype html>
-<html lang="ru">  
-<head>  
-  <meta charset="utf-8" />  
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />  
-  <title>GammaTon — Мини-игра</title>  
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>  
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>  
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>  
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>  
-  <script src="https://unpkg.com/@tonconnect/ui@2.0.8/dist/tonconnect-ui.min.js"></script>    <style>  
-    :root{--bg:#0b0f1a;--card:#11182a;--text:#e8eeff;--muted:#9fb7ff66;--accent:#5c8dff;--radius:18px}  
-    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:radial-gradient(1200px 600px at 50% -100px,#1a2453 0%,#0b0f1a 55%,#08102a 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Inter,Arial;}  
-    .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}  
-    .top{position:relative;display:flex;justify-content:center;align-items:center;padding:10px 16px}  
-    .title{font-weight:700}  
-    .float-wrap{position:absolute;left:12px;top:8px;display:flex;flex-direction:column;gap:10px;z-index:5}  
-    .float-right{left:auto;right:12px}  
-    .round{width:46px;height:46px;border-radius:50%;background:linear-gradient(160deg,#1e2a4f,#0f1630);display:grid;place-items:center;border:1px solid #ffffff14;cursor:pointer}  
-    .views{flex:1;position:relative;overflow:hidden}  
-    .view{position:absolute;inset:0;padding:12px 12px 88px;overflow-y:auto;opacity:0;transform:translateX(20px);transition:opacity .25s ease,transform .3s ease}  
-    .view.active{opacity:1;transform:translateX(0)}  
-    .card{background:linear-gradient(180deg,#121a30,#0e1426);border:1px solid #ffffff10;border-radius:var(--radius);padding:14px;margin:10px 0}  
-    .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}  
-    .stat{background:linear-gradient(180deg,#141e38,#0f1730);border-radius:12px;padding:10px;text-align:center}  
-    .muted{opacity:.8;font-size:13px}  
-    .shop-item{display:flex;gap:10px;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#111a34,#0c1327);border-radius:12px;padding:10px;margin:8px 0}  
-    .img{width:54px;height:54px;border-radius:12px;background:#0b1226;display:grid;place-items:center}  
-    .btn{border:none;background:linear-gradient(180deg,#5c8dff,#3b6dff);padding:10px 14px;border-radius:12px;color:white;font-weight:700;cursor:pointer}
 
-.btn.secondary{background:linear-gradient(180deg,#2a3355,#1a2344)}  
-    .nav{position:fixed;inset:auto 0 0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-top:1px solid #ffffff10;background:linear-gradient(180deg,#0b0f1aee,#0b0f1aff)}  
-    .nav .item{display:flex;flex-direction:column;align-items:center;gap:4px;color:#cfe0ffcc;font-size:11px}  
-    input{background:#0b1226;border:1px solid #ffffff18;padding:10px;border-radius:10px;color:#fff}  
-  </style>  </head>  
-<body>  
-<div class="app">  
-  <div class="top">  
-    <div class="float-wrap">  
-      <button class="round" id="btnEnergyWheel" title="Рулетка энергии">⚡</button>  
-      <button class="round" id="btnLuckWheel" title="Рулетка удачи">🎲</button>  
-    </div>  
-    <div class="float-wrap float-right">  
-      <button class="round" id="btnPremium" title="Премиум">⭐</button>  
-    </div>  
-    <div class="title">GammaTon</div>  
-  </div>    <div class="views">  
-    <!-- City -->  
-    <section class="view active" id="view-city">  
-      <div class="card">  
-        <h3>Баланс</h3>  
-        <div class="stats">  
-          <div class="stat"><div class="val" id="energy">0</div><div class="muted">Энергия</div></div>  
-          <div class="stat"><div class="val" id="gamma">0</div><div class="muted">Gamma coin</div></div>  
-          <div class="stat"><div class="val" id="ton">0</div><div class="muted">TON</div></div>  
-        </div>  
-        <div style="margin-top:8px" class="muted">Добыча идёт только 1 час после запуска, затем останавливается — нажмите «Перезапустить добычу». Премиум даёт +20% к добыче и +2000 γ при покупке.</div>  
-      </div>  <div class="card">  
-    <h3>Ваши здания</h3>  
-    <div id="buildingsList"></div>  
-    <div style="margin-top:10px;display:flex;gap:8px">  
-      <button class="btn secondary" id="btnRestartProduction">Перезапустить добычу (1 час)</button>  
-    </div>  
-  </div>  
+<html lang="ru">    
+<head>    
+  <meta charset="utf-8" />    
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />    
+  <title>GammaTon — Мини-игра</title>    
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>    
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>    
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>    
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>    
+  <script src="https://unpkg.com/@tonconnect/ui@2.0.8/dist/tonconnect-ui.min.js"></script>    <style>    
+    :root{--bg:#0b0f1a;--card:#11182a;--text:#e8eeff;--muted:#9fb7ff66;--accent:#5c8dff;--radius:18px}    
+    *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:radial-gradient(1200px 600px at 50% -100px,#1a2453 0%,#0b0f1a 55%,#08102a 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Inter,Arial;}    
+    .app{display:flex;flex-direction:column;height:100vh;overflow:hidden}    
+    .top{position:relative;display:flex;justify-content:center;align-items:center;padding:10px 16px}    
+    .title{font-weight:700}    
+    .float-wrap{position:absolute;left:12px;top:8px;display:flex;flex-direction:column;gap:10px;z-index:5}    
+    .float-right{left:auto;right:12px}    
+    .round{width:46px;height:46px;border-radius:50%;background:linear-gradient(160deg,#1e2a4f,#0f1630);display:grid;place-items:center;border:1px solid #ffffff14;cursor:pointer}    
+    .views{flex:1;position:relative;overflow:hidden}    
+    .view{position:absolute;inset:0;padding:12px 12px 88px;overflow-y:auto;opacity:0;transform:translateX(20px);transition:opacity .25s ease,transform .3s ease}    
+    .view.active{opacity:1;transform:translateX(0)}    
+    .card{background:linear-gradient(180deg,#121a30,#0e1426);border:1px solid #ffffff10;border-radius:var(--radius);padding:14px;margin:10px 0}    
+    .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}    
+    .stat{background:linear-gradient(180deg,#141e38,#0f1730);border-radius:12px;padding:10px;text-align:center}    
+    .muted{opacity:.8;font-size:13px}    
+    .shop-item{display:flex;gap:10px;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#111a34,#0c1327);border-radius:12px;padding:10px;margin:8px 0}    
+    .img{width:54px;height:54px;border-radius:12px;background:#0b1226;display:grid;place-items:center}    
+    .btn{border:none;background:linear-gradient(180deg,#5c8dff,#3b6dff);padding:10px 14px;border-radius:12px;color:white;font-weight:700;cursor:pointer}  
+.btn.secondary{background:linear-gradient(180deg,#2a3355,#1a2344)}    
+    .nav{position:fixed;inset:auto 0 0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-top:1px solid #ffffff10;background:linear-gradient(180deg,#0b0f1aee,#0b0f1aff)}    
+    .nav .item{display:flex;flex-direction:column;align-items:center;gap:4px;color:#cfe0ffcc;font-size:11px}    
+    input{background:#0b1226;border:1px solid #ffffff18;padding:10px;border-radius:10px;color:#fff}    
+  </style>  </head>    
+<body>    
+<div class="app">    
+  <div class="top">    
+    <div class="float-wrap">    
+      <button class="round" id="btnEnergyWheel" title="Рулетка энергии">⚡</button>    
+      <button class="round" id="btnLuckWheel" title="Рулетка удачи">🎲</button>    
+    </div>    
+    <div class="float-wrap float-right">    
+      <button class="round" id="btnPremium" title="Премиум">⭐</button>    
+    </div>    
+    <div class="title">GammaTon</div>    
+  </div>    <div class="views">    
+    <!-- City -->    
+    <section class="view active" id="view-city">    
+      <div class="card">    
+        <h3>Баланс</h3>    
+        <div class="stats">    
+          <div class="stat"><div class="val" id="energy">0</div><div class="muted">Энергия</div></div>    
+          <div class="stat"><div class="val" id="gamma">0</div><div class="muted">Gamma coin</div></div>    
+          <div class="stat"><div class="val" id="ton">0</div><div class="muted">TON</div></div>    
+        </div>    
+        <div style="margin-top:8px" class="muted">Добыча идёт только 1 час после запуска, затем останавливается — нажмите «Перезапустить добычу». Премиум даёт +20% к добыче и +2000 γ при покупке.</div>    
+      </div>  <div class="card">    
+    <h3>Ваши здания</h3>    
+    <div id="buildingsList"></div>    
+    <div style="margin-top:10px;display:flex;gap:8px">    
+      <button class="btn secondary" id="btnRestartProduction">Перезапустить добычу (1 час)</button>    
+    </div>    
+  </div>    
+</section>    
+<!-- Shop -->    
+<section class="view" id="view-shop">    
+  <div class="card"><h3>Магазин зданий</h3>    
+    <div id="shopList"></div>    
+  </div>    
+</section>    
+<!-- Events -->    
+<section class="view" id="view-events">    
+  <div class="card"><h3>Ивенты</h3>    
+    <div class="muted">Новый ивент через неделю — смотрите объявления в канале.</div>    
+  </div>    
+</section>    
+<!-- Leaderboard -->    
+<section class="view" id="view-leaderboard">    
+  <div class="card"><h3>Лидерборд</h3>    
+    <div id="leaderboard"></div>    
+  </div>    
+</section>    
+<!-- Exchange -->    
+<section class="view" id="view-exchange">    
+  <div class="card">    
+    <h3>Обмен и Пополнение</h3>    
+    <div class="muted">Курсы: 100000 γ = 1 TON | 10000 энергии = 10 γ. Пополнение: от 1 TON (комиссия 10%). Вывод: доступен сразу (комиссия 10%).</div>    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">    
+      <button class="btn" id="btnGammaToTon">γ → TON</button>    
+      <button class="btn" id="btnEnergyToTon">Энергия → γ</button>    
+    </div>    
+  </div>    
+  <div class="card">    
+    <h3>Пополнение TON (TON Connect)</h3>    
+    <div id="tonconnect"></div>    
+    <div style="margin-top:8px" class="muted">Минимум 1 TON, максимум 100 TON. Комиссия 10% удерживается при зачислении.</div>    
+    <button class="btn" id="btnDepositTon">Пополнить TON</button>    
+    <div id="depositStatus" class="muted" style="margin-top:8px"></div>    
+  </div>    
+  <div class="card">    
+    <h3>Вывод средств</h3>    
+    <div class="muted">Вывод доступен сразу. Комиссия 10% списывается при оформлении вывода.</div>    
+    <input id="withdrawAddress" placeholder="TON-адрес" style="width:100%;margin:8px 0" />    
+    <input id="withdrawAmount" placeholder="Cумма (TON)" type="number" min="0" step="0.01" style="width:100%;margin-bottom:8px" />    
+    <button class="btn secondary" id="btnWithdraw">Отправить на вывод</button>    
+    <div id="withdrawStatus" class="muted" style="margin-top:8px"></div>    
+  </div>    
 </section>  
-
-<!-- Shop -->  
-<section class="view" id="view-shop">  
-  <div class="card"><h3>Магазин зданий</h3>  
-    <div id="shopList"></div>  
-  </div>  
-</section>  
-
-<!-- Events -->  
-<section class="view" id="view-events">  
-  <div class="card"><h3>Ивенты</h3>  
-    <div class="muted">Новый ивент через неделю — смотрите объявления в канале.</div>  
-  </div>  
-</section>  
-
-<!-- Leaderboard -->  
-<section class="view" id="view-leaderboard">  
-  <div class="card"><h3>Лидерборд</h3>  
-    <div id="leaderboard"></div>  
-  </div>  
-</section>  
-
-<!-- Exchange -->  
-<section class="view" id="view-exchange">  
-  <div class="card">  
-    <h3>Обмен и Пополнение</h3>  
-    <div class="muted">Курсы: 100000 γ = 1 TON | 10000 энергии = 10 γ. Пополнение: от 1 TON (комиссия 10%). Вывод: доступен сразу (комиссия 10%).</div>  
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">  
-      <button class="btn" id="btnGammaToTon">γ → TON</button>  
-      <button class="btn" id="btnEnergyToTon">Энергия → γ</button>  
-    </div>  
-  </div>  
-
-  <div class="card">  
-    <h3>Пополнение TON (TON Connect)</h3>  
-    <div id="tonconnect"></div>  
-    <div style="margin-top:8px" class="muted">Минимум 1 TON, максимум 100 TON. Комиссия 10% удерживается при зачислении.</div>  
-    <button class="btn" id="btnDepositTon">Пополнить TON</button>  
-    <div id="depositStatus" class="muted" style="margin-top:8px"></div>  
-  </div>  
-
-  <div class="card">  
-    <h3>Вывод средств</h3>  
-    <div class="muted">Вывод доступен сразу. Комиссия 10% списывается при оформлении вывода.</div>  
-    <input id="withdrawAddress" placeholder="TON-адрес" style="width:100%;margin:8px 0" />  
-    <input id="withdrawAmount" placeholder="Cумма (TON)" type="number" min="0" step="0.01" style="width:100%;margin-bottom:8px" />  
-    <button class="btn secondary" id="btnWithdraw">Отправить на вывод</button>  
-    <div id="withdrawStatus" class="muted" style="margin-top:8px"></div>  
-  </div>  
-</section>
-
-</div>    <nav class="nav">  
-    <button class="item" data-view="events"><div class="ico">🎉</div>Ивенты</button>  
-    <button class="item" data-view="shop"><div class="ico">🛒</div>Магазин</button>  
-    <button class="item active" data-view="city"><div class="ico">🏙️</div>Город</button>  
-    <button class="item" data-view="leaderboard"><div class="ico">🏆</div>Топ</button>  
-    <button class="item" data-view="exchange"><div class="ico">🔁</div>Обмен</button>  
-  </nav>  
-</div>  <script>  
-/* ========= CONFIG ========= */  
-const FIREBASE_CONFIG = {  
-  apiKey: "AIzaSyA2mxa0BR-V7FtqCFxkXtSoOTGUFXbI4M4",  
-  authDomain: "gammaton-fdbfd.firebaseapp.com",  
-  databaseURL: "https://gammaton-fdbfd-default-rtdb.firebaseio.com",  
-  projectId: "gammaton-fdbfd",  
-  storageBucket: "gammaton-fdbfd.firebasestorage.app",  
-  messagingSenderId: "118045498245",  
-  appId: "1:118045498245:web:80ec4a4a7d9528f4c1c2ec"  
-};  
-  
-const OWNER_TON_WALLET = 'UQAmTM_EE8D6seecLKf-h8aXVQasliniDDQ52EvBj7PqExNr';  
-  
-const RATES = {  
-  GAMMA_TO_TON: 100000,   // 100000 γ -> 1 TON  
-  ENERGY_TO_GAMMA_PER_10K: 10 // 10000 energy -> 10 γ  
-};  
-  
-/* ========= BUILDINGS (только 1 уровень, можно покупать только один экземпляр каждого) ========= */  
-const BUILDINGS = {  
-  solar: { id:'solar', name:'Солнечная батарея', priceGamma:7, earnPerHour:700, emoji:'☀️' },  
-  wind:  { id:'wind',  name:'Воздушная батарея',  priceGamma:21, earnPerHour:2100, emoji:'🌬️' },  
-  water: { id:'water', name:'Водная батарея',    priceGamma:76, earnPerHour:5700, emoji:'💧' }  
-};  
-  
-/* ========= STATE ========= */  
-let appUser = {  
-  uid: null,  
-  premium: false,  
-  balances: { energy:0, gamma:0, ton:0 },  
-  buildings: {}, // e.g. { solar: true }  
-  lastTick: Date.now(),  
-  productionActiveUntil: 0, // timestamp ms, production runs until this  
-  wheels: { energyAt:0 }  
-};  
-  
-let db, auth, userRef;  
-let tonConnectUI;  
-  
-/* ========= INIT ========= */  
-(async function init(){  
-  try{ if(window.Telegram?.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}  
-  
-  firebase.initializeApp(FIREBASE_CONFIG);  
-  auth = firebase.auth();  
-  db = firebase.database();  
-  await auth.signInAnonymously();  
-  appUser.uid = auth.currentUser.uid;  
-  userRef = db.ref('users/'+appUser.uid);  
-  
-  // load or create  
-  const snap = await userRef.get();  
-  if(snap.exists()) appUser = {...appUser, ...snap.val()};  
-  else await userRef.set(appUser);  
-  
-  tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json', buttonRootId: 'tonconnect' });  
-  
-  tickEnergy();  
-  renderAll();  
-  subscribeLeaderboard();  
-})();  
-  
-/* ========= PRODUCTION (1 час работы) ========= */  
-function totalHourly(){  
-  let sum = 0;  
-  for(const id of Object.keys(BUILDINGS)){  
-    if(appUser.buildings[id]){  
-      sum += BUILDINGS[id].earnPerHour;  
-    }  
-  }  
-  if(appUser.premium) sum = Math.floor(sum * 1.2); // +20% для премиума  
-  return sum;  
-}  
-  
-function tickEnergy(){  
-  const now = Date.now();  
-  const last = appUser.lastTick || now;  
-  let produced = 0;  
-  
-  // Если productionActiveUntil > last, производим за пересечение [last, now] с [last, productionActiveUntil]  
-  if(appUser.productionActiveUntil > last){  
-    const activeFrom = last;  
-    const activeTo = Math.min(now, appUser.productionActiveUntil);  
-    const dtHours = Math.max(0, (activeTo - activeFrom) / 3600000);  
-    const perH = totalHourly();  
-    produced = Math.floor(perH * dtHours);  
-    if(produced > 0){  
-      appUser.balances.energy = (appUser.balances.energy || 0) + produced;  
-    }  
-  }  
-  
-  appUser.lastTick = now;  
-  userRef.update({ balances: appUser.balances, lastTick: appUser.lastTick, productionActiveUntil: appUser.productionActiveUntil }).catch(()=>{});
-
-updateBalancesUI();  
-  
-  // Если время остановилось — оставляем как есть. Проверяем снова через 20 сек.  
-  setTimeout(()=> tickEnergy(), 20000);  
-}  
-  
-/* ========= RENDER ========= */  
-function n(v){ return (v||0).toLocaleString('ru-RU'); }  
-function updateBalancesUI(){  
-  document.getElementById('energy').textContent = n(appUser.balances.energy);  
-  document.getElementById('gamma').textContent  = n(appUser.balances.gamma);  
-  document.getElementById('ton').textContent    = (appUser.balances.ton||0).toFixed(2);  
-}  
-  
-function renderAll(){  
-  updateBalancesUI();  
-  renderBuildingsOwned();  
-  renderShop();  
-}  
-  
-/* ========= BUILDINGS UI ========= */  
-function renderBuildingsOwned(){  
-  const root = document.getElementById('buildingsList'); root.innerHTML = '';  
-  for(const id of Object.keys(BUILDINGS)){  
-    if(appUser.buildings[id]){  
-      const conf = BUILDINGS[id];  
-      const el = document.createElement('div'); el.className='shop-item';  
-      el.innerHTML =   
-        <div style="display:flex;gap:10px;align-items:center">  
-          <div class="img">${conf.emoji}</div>  
-          <div>  
-            <div style="font-weight:700">${conf.name}</div>  
-            <div class="muted">Доход: ${n(conf.earnPerHour)} энергия/ч</div>  
-          </div>  
-        </div>  
-        <div><button class="btn secondary" data-sell="${id}">Продать</button></div>  
-      ;  
-      root.appendChild(el);  
-    }  
-  }  
-  root.querySelectorAll('[data-sell]').forEach(b=>b.addEventListener('click', onSell));  
-}  
-  
-async function onSell(e){  
-  const id = e.currentTarget.getAttribute('data-sell');  
-  // вернуть 50% от стоимости в γ при продаже (пример)  
-  const refund = Math.floor(BUILDINGS[id].priceGamma * 0.5);  
-  delete appUser.buildings[id];  
-  appUser.balances.gamma = (appUser.balances.gamma || 0) + refund;  
-  await userRef.update({ balances: appUser.balances, buildings: appUser.buildings });  
-  renderAll();  
-}  
-  
-/* ========= SHOP ========= */  
-function renderShop(){  
-  const root = document.getElementById('shopList'); root.innerHTML = '';  
-  for(const id of Object.keys(BUILDINGS)){  
-    const conf = BUILDINGS[id];  
-    const have = !!appUser.buildings[id];  
-    const canBuy = !have && ((appUser.balances.gamma||0) >= conf.priceGamma);  
-    const el = document.createElement('div'); el.className='shop-item';  
-    el.innerHTML =   
-      <div style="display:flex;gap:10px;align-items:center">  
-        <div class="img">${conf.emoji}</div>  
-        <div>  
-          <div style="font-weight:700">${conf.name}</div>  
-          <div class="muted">${have? 'Куплено' : (conf.priceGamma + ' γ')}</div>  
-        </div>  
-      </div>  
-      <div>  
-        <button class="btn ${canBuy? '':'secondary'}" ${canBuy? '':'disabled'} data-buy="${id}">${have? '—' : 'Купить'}</button>  
-      </div>;  
-    root.appendChild(el);  
-  }  
-  root.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', onBuy));  
-}  
-  
-async function onBuy(e){  
-  const id = e.currentTarget.getAttribute('data-buy');  
-  const conf = BUILDINGS[id];  
-  if(appUser.buildings[id]) return;  
-  if((appUser.balances.gamma||0) < conf.priceGamma) return alert('Недостаточно γ');  
-  appUser.balances.gamma -= conf.priceGamma;  
-  appUser.buildings[id] = true;  
-  // при первой покупке запускаем добычу на 1 час (повторный запуск нужен вручную)  
-  appUser.productionActiveUntil = Date.now() + 3600000;  
-  await userRef.update({ balances: appUser.balances, buildings: appUser.buildings, productionActiveUntil: appUser.productionActiveUntil });  
-  renderAll();  
-}  
-  
-/* ========= RESTART PRODUCTION ========= */  
-document.getElementById('btnRestartProduction').addEventListener('click', async ()=>{  
-  // Запускаем добычу ещё на 1 час
-
-if(Object.keys(appUser.buildings||{}).length === 0) return alert('У вас нет зданий. Купите хотя бы одно.');  
-  appUser.productionActiveUntil = Date.now() + 3600000;  
-  await userRef.update({ productionActiveUntil: appUser.productionActiveUntil });  
-  alert('Добыча запущена ещё на 1 час.');  
-  renderAll();  
-});  
-  
-/* ========= WHEELS ========= */  
-const DAY = 86400000;  
-document.getElementById('btnEnergyWheel').onclick = async ()=>{  
-  const now = Date.now(), last = appUser.wheels?.energyAt || 0;  
-  if(now - last < DAY) return alert('Рулетка энергии доступна раз в сутки.');  
-  const gain = Math.floor(100 + Math.random()*1901);  
-  appUser.balances.energy += gain;  
-  appUser.wheels.energyAt = now;  
-  await userRef.update({ balances: appUser.balances, wheels: appUser.wheels });  
-  renderAll(); alert('Вы получили '+gain+' энергии!');  
-};  
-document.getElementById('btnLuckWheel').onclick = async ()=>{  
-  if((appUser.balances.ton||0) < 1) return alert('Нужно минимум 1 TON на балансе.');  
-  appUser.balances.ton -= 1;  
-  let reward = Math.random() < 0.99 ? +(0.5 + Math.random()*0.5).toFixed(2) : +(1 + Math.random()*4).toFixed(2);  
-  appUser.balances.ton += reward;  
-  await userRef.update({ balances: appUser.balances });  
-  renderAll(); alert('Рулетка удачи: выигрыш '+reward+' TON');  
-};  
-  
-/* ========= PREMIUM ========= */  
-const PREMIUM_PRICES = { monthly:5, forever:30 };  
-document.getElementById('btnPremium').onclick = async ()=>{  
-  const pick = prompt('Премиум: \\n1) Месяц — 5 TON\\n2) Навсегда — 30 TON\\nВведите 1 или 2');  
-  if(!pick) return;  
-  const price = pick === '2' ? PREMIUM_PRICES.forever : PREMIUM_PRICES.monthly;  
-  if((appUser.balances.ton||0) < price) return alert('Недостаточно TON');  
-  appUser.balances.ton -= price;  
-  appUser.premium = true;  
-  appUser.balances.gamma = (appUser.balances.gamma||0) + 2000; // +2000 γ  
-  await userRef.update({ balances: appUser.balances, premium: appUser.premium });  
-  renderAll(); alert('Премиум активирован: +20% к доходу и +2000 γ');  
-};  
-  
-/* ========= EXCHANGE & TON CONNECT ========= */  
-function addTon(v){ appUser.balances.ton = +(Math.max(0,(appUser.balances.ton||0) + v)).toFixed(2); }  
-function addGamma(v){ appUser.balances.gamma = Math.max(0,(appUser.balances.gamma||0) + v); }  
-function addEnergy(v){ appUser.balances.energy = Math.max(0,(appUser.balances.energy||0) + v); }  
-  
-document.getElementById('btnGammaToTon').onclick = async ()=>{  
-  const amtGamma = +prompt('Сколько γ обменять на TON? (100000 γ = 1 TON)');  
-  if(!amtGamma || amtGamma<=0) return;  
-  if((appUser.balances.gamma||0) < amtGamma) return alert('Недостаточно γ');  
-  const lots = Math.floor(amtGamma / RATES.GAMMA_TO_TON);  
-  if(lots <= 0) return alert('Минимум 100000 γ');  
-  addGamma(-lots * RATES.GAMMA_TO_TON);  
-  addTon(lots * 1);  
-  await userRef.update({ balances: appUser.balances });  
-  renderAll();  
-};  
-  
-document.getElementById('btnEnergyToTon').onclick = async ()=>{  
-  const amt = +prompt('Сколько энергии обменять? (10000 энергии = 10 γ)');  
-  if(!amt || amt<=0) return;  
-  if((appUser.balances.energy||0) < amt) return alert('Недостаточно энергии');  
-  const lots = Math.floor(amt / 10000);  
-  if(lots <= 0) return alert('Минимум 10000 энергии');  
-  addEnergy(-lots * 10000);  
-  addGamma(lots * RATES.ENERGY_TO_GAMMA_PER_10K);  
-  await userRef.update({ balances: appUser.balances });  
-  renderAll();  
-};  
-  
-/* ========= DEPOSIT via TON Connect (с комиссия 10%) ========= */  
-document.getElementById('btnDepositTon').onclick = async ()=>{  
-  try{ await tonConnectUI.connectWallet(); }catch(e){}  
-  const amt = +prompt('Сумма депозита в TON (1..100)');  
-  if(!amt  amt < 1  amt > 100) return alert('Введите от 1 до 100 TON');  
-  const memo = 'dep-'+appUser.uid+'-'+Date.now();
-
-const tonAmountNano = BigInt(Math.round(amt * 1e9)).toString();  
-  await tonConnectUI.sendTransaction({  
-    validUntil: Math.floor(Date.now()/1000) + 600,  
-    messages: [{ address: OWNER_TON_WALLET, amount: tonAmountNano, stateInit: undefined, payload: undefined }],  
-  });  
-  document.getElementById('depositStatus').textContent = 'Проверяем транзакцию в сети TON…';  
-  // сообщаем бэку — он найдёт платёж и зачислит (с учётом комиссии 10%)  
-  const res = await fetch(getApi('/api/checkDeposit'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, amount: amt })});  
-  const data = await res.json();  
-  if(data.ok){ addTon( +( (amt * 0.9).toFixed(2) ) ); // front покажет зачисленное 90%  
-    if(!appUser.firstDepositAt) appUser.firstDepositAt = Date.now();  
-    await userRef.update({ balances: appUser.balances, firstDepositAt: appUser.firstDepositAt });  
-    renderAll(); document.getElementById('depositStatus').textContent = 'Депозит найден и зачислен (с учётом комиссии).';  
-  } else {  
-    document.getElementById('depositStatus').textContent = 'Оплата не найдена автоматически. Проверка продолжится на сервере.';  
-  }  
-};  
-  
-/* ========= WITHDRAW ========= */  
-document.getElementById('btnWithdraw').onclick = async ()=>{  
-  const address = document.getElementById('withdrawAddress').value.trim();  
-  const amount = +document.getElementById('withdrawAmount').value;  
-  if(!address  !amount  amount <= 0) return alert('Укажите адрес и сумму');  
-  if((appUser.balances.ton || 0) < amount) return alert('Недостаточно TON');  
-  const fee = +(amount * 0.10).toFixed(6); // 10% комиссия  
-  const totalDeduct = +(amount + fee).toFixed(6);  
-  if((appUser.balances.ton || 0) < totalDeduct) return alert('Недостаточно TON для выплаты с учётом комиссии');  
-  // списываем сразу  
-  appUser.balances.ton = +( (appUser.balances.ton || 0) - totalDeduct ).toFixed(6);  
-  await userRef.update({ balances: appUser.balances });  
-  // отправляем заявку на бэкенд (админ обработает реальный перевод)  
-  const res = await fetch(getApi('/api/requestWithdrawal'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, address, amount })});  
-  const data = await res.json();  
-  if(data.ok){ renderAll(); document.getElementById('withdrawStatus').textContent = 'Заявка на вывод принята. Комиссия 10% удержана.'; }  
-  else { document.getElementById('withdrawStatus').textContent = 'Ошибка создания заявки.'; }  
-};  
-  
-/* ========= LEADERBOARD ========= */  
-function subscribeLeaderboard(){  
-  const ref = db.ref('users');  
-  ref.orderByChild('balances/energy').limitToLast(50).on('value', snap=>{  
-    const list=[]; snap.forEach(ch=>{ const v=ch.val(); list.push({uid:ch.key, energy:v?.balances?.energy||0}); });  
-    list.sort((a,b)=>b.energy-a.energy);  
-    const root = document.getElementById('leaderboard'); root.innerHTML='';  
-    list.forEach((it,i)=>{ const div=document.createElement('div'); div.className='shop-item'; div.innerHTML=<div>#${i+1}</div><div class="muted">uid:${it.uid.slice(0,6)}…</div><div><b>${n(it.energy)}</b> э</div>; root.appendChild(div); });  
-  });  
-}  
-  
-/* ========= NAV ========= */  
-const navItems = document.querySelectorAll('.nav .item');  
-navItems.forEach(btn=>btn.addEventListener('click',()=>{  
-  navItems.forEach(b=>b.classList.remove('active'));  
-  btn.classList.add('active');  
-  const v = btn.getAttribute('data-view');  
-  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));  
-  document.getElementById('view-'+v).classList.add('active');  
-}));  
-  
-/* ========= HELPERS ========= */  
-function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')).replace(/\/$/,'') + path; }
-
-</script>
-
-<!-- Безопасная динамическая вставка sticky-рекламы (добавлено отдельно, не меняет логику приложения) -->
-<script id="ad-inject">
-(function(){
-  try{
-    // Не добавляем повторно
-    if(document.getElementById('aads-container')) return;
-
-    // Создаём стиль, чтобы навигация была над баннером (визуально видима и кликабельна)
-    var style = document.createElement('style');
-    style.id = 'aads-nav-style';
-    style.textContent = '.nav{z-index:100000 !important;}';
-    document.head.appendChild(style);
-
-    // Создаём контейнер рекламы
-    var ad = document.createElement('div');
-    ad.id = 'aads-container';
-    // Позиция: прикреплён к низу экрана
-    ad.style.position = 'fixed';
-    ad.style.left = '0';
-    ad.style.right = '0';
-    ad.style.bottom = '0';
-    ad.style.zIndex = '99999';
-    ad.style.display = 'flex';
-    ad.style.justifyContent = 'center';
-    ad.style.pointerEvents = 'auto';
-    ad.style.padding = '6px 8px';
-    ad.style.background = 'transparent';
-
-    // Ограничиваем ширину и центрируем баннер
-    var inner = document.createElement('div');
-    inner.style.width = '100%';
-    inner.style.maxWidth = '1100px';
-    inner.style.margin = 'auto';
-    inner.style.textAlign = 'center';
-
-    var frameWrap = document.createElement('div');
-    frameWrap.id = 'frame';
-    frameWrap.style.width = '100%';
-    frameWrap.style.margin = 'auto';
-    frameWrap.style.display = 'block';
-
-    var iframe = document.createElement('iframe');
-    iframe.setAttribute('data-aa','2410989');
-    iframe.src = '//acceptable.a-ads.com/2410989/?size=Adaptive';
-    iframe.style.border = '0';
-    iframe.style.padding = '0';
-    iframe.style.width = '100%';
-    iframe.style.height = '90px';
-    iframe.style.overflow = 'hidden';
-    iframe.style.display = 'block';
-    iframe.style.background = 'transparent';
-
-    frameWrap.appendChild(iframe);
-    inner.appendChild(frameWrap);
-    ad.appendChild(inner);
-
-    // Вставляем в body после загрузки DOM, чтобы не мешать выполнению основного скрипта
-    if(document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(ad); });
-    } else {
-      document.body.appendChild(ad);
-    }
-
-  }catch(e){
-    // Не ломаем приложение, в случае ошибки логируем в консоль
-    console.error('failed to insert ad container', e);
-  }
-})();
-</script>
-<!-- Конец блока рекламы -->
-
-</body>  
-  </html>
+</div>    <nav class="nav">    
+    <button class="item" data-view="events"><div class="ico">🎉</div>Ивенты</button>    
+    <button class="item" data-view="shop"><div class="ico">🛒</div>Магазин</button>    
+    <button class="item active" data-view="city"><div class="ico">🏙️</div>Город</button>    
+    <button class="item" data-view="leaderboard"><div class="ico">🏆</div>Топ</button>    
+    <button class="item" data-view="exchange"><div class="ico">🔁</div>Обмен</button>    
+  </nav>    
+</div>  <script>    
+/* ========= CONFIG ========= */    
+const FIREBASE_CONFIG = {    
+  apiKey: "AIzaSyA2mxa0BR-V7FtqCFxkXtSoOTGUFXbI4M4",    
+  authDomain: "gammaton-fdbfd.firebaseapp.com",    
+  databaseURL: "https://gammaton-fdbfd-default-rtdb.firebaseio.com",    
+  projectId: "gammaton-fdbfd",    
+  storageBucket: "gammaton-fdbfd.firebasestorage.app",    
+  messagingSenderId: "118045498245",    
+  appId: "1:118045498245:web:80ec4a4a7d9528f4c1c2ec"    
+};    
+    
+const OWNER_TON_WALLET = 'UQAmTM_EE8D6seecLKf-h8aXVQasliniDDQ52EvBj7PqExNr';    
+    
+const RATES = {    
+  GAMMA_TO_TON: 100000,   // 100000 γ -> 1 TON    
+  ENERGY_TO_GAMMA_PER_10K: 10 // 10000 energy -> 10 γ    
+};    
+    
+/* ========= BUILDINGS (только 1 уровень, можно покупать только один экземпляр каждого) ========= */    
+const BUILDINGS = {    
+  solar: { id:'solar', name:'Солнечная батарея', priceGamma:7, earnPerHour:700, emoji:'☀️' },    
+  wind:  { id:'wind',  name:'Воздушная батарея',  priceGamma:21, earnPerHour:2100, emoji:'🌬️' },    
+  water: { id:'water', name:'Водная батарея',    priceGamma:76, earnPerHour:5700, emoji:'💧' }    
+};    
+    
+/* ========= STATE ========= */    
+let appUser = {    
+  uid: null,    
+  premium: false,    
+  balances: { energy:0, gamma:0, ton:0 },    
+  buildings: {}, // e.g. { solar: true }    
+  lastTick: Date.now(),    
+  productionActiveUntil: 0, // timestamp ms, production runs until this    
+  wheels: { energyAt:0 }    
+};    
+    
+let db, auth, userRef;    
+let tonConnectUI;    
+    
+/* ========= INIT ========= */    
+(async function init(){    
+  try{ if(window.Telegram?.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}    
+    
+  firebase.initializeApp(FIREBASE_CONFIG);    
+  auth = firebase.auth();    
+  db = firebase.database();    
+  await auth.signInAnonymously();    
+  appUser.uid = auth.currentUser.uid;    
+  userRef = db.ref('users/'+appUser.uid);    
+    
+  // load or create    
+  const snap = await userRef.get();    
+  if(snap.exists()) appUser = {...appUser, ...snap.val()};    
+  else await userRef.set(appUser);    
+    
+  tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json', buttonRootId: 'tonconnect' });    
+    
+  tickEnergy();    
+  renderAll();    
+  subscribeLeaderboard();    
+})();    
+    
+/* ========= PRODUCTION (1 час работы) ========= */    
+function totalHourly(){    
+  let sum = 0;    
+  for(const id of Object.keys(BUILDINGS)){    
+    if(appUser.buildings[id]){    
+      sum += BUILDINGS[id].earnPerHour;    
+    }    
+  }    
+  if(appUser.premium) sum = Math.floor(sum * 1.2); // +20% для премиума    
+  return sum;    
+}    
+    
+function tickEnergy(){    
+  const now = Date.now();    
+  const last = appUser.lastTick || now;    
+  let produced = 0;    
+    
+  // Если productionActiveUntil > last, производим за пересечение [last, now] с [last, productionActiveUntil]    
+  if(appUser.productionActiveUntil > last){    
+    const activeFrom = last;    
+    const activeTo = Math.min(now, appUser.productionActiveUntil);    
+    const dtHours = Math.max(0, (activeTo - activeFrom) / 3600000);    
+    const perH = totalHourly();    
+    produced = Math.floor(perH * dtHours);    
+    if(produced > 0){    
+      appUser.balances.energy = (appUser.balances.energy || 0) + produced;    
+    }    
+  }    
+    
+  appUser.lastTick = now;    
+  userRef.update({ balances: appUser.balances, lastTick: appUser.lastTick, productionActiveUntil: appUser.productionActiveUntil }).catch(()=>{});  
+updateBalancesUI();    
+    
+  // Если время остановилось — оставляем как есть. Проверяем снова через 20 сек.    
+  setTimeout(()=> tickEnergy(), 20000);    
+}    
+    
+/* ========= RENDER ========= */    
+function n(v){ return (v||0).toLocaleString('ru-RU'); }    
+function updateBalancesUI(){    
+  document.getElementById('energy').textContent = n(appUser.balances.energy);    
+  document.getElementById('gamma').textContent  = n(appUser.balances.gamma);    
+  document.getElementById('ton').textContent    = (appUser.balances.ton||0).toFixed(2);    
+}    
+    
+function renderAll(){    
+  updateBalancesUI();    
+  renderBuildingsOwned();    
+  renderShop();    
+}    
+    
+/* ========= BUILDINGS UI ========= */    
+function renderBuildingsOwned(){    
+  const root = document.getElementById('buildingsList'); root.innerHTML = '';    
+  for(const id of Object.keys(BUILDINGS)){    
+    if(appUser.buildings[id]){    
+      const conf = BUILDINGS[id];    
+      const el = document.createElement('div'); el.className='shop-item';    
+      el.innerHTML =     
+        <div style="display:flex;gap:10px;align-items:center">    
+          <div class="img">${conf.emoji}</div>    
+          <div>    
+            <div style="font-weight:700">${conf.name}</div>    
+            <div class="muted">Доход: ${n(conf.earnPerHour)} энергия/ч</div>    
+          </div>    
+        </div>    
+        <div><button class="btn secondary" data-sell="${id}">Продать</button></div>    
+      ;    
+      root.appendChild(el);    
+    }    
+  }    
+  root.querySelectorAll('[data-sell]').forEach(b=>b.addEventListener('click', onSell));    
+}    
+    
+async function onSell(e){    
+  const id = e.currentTarget.getAttribute('data-sell');    
+  // вернуть 50% от стоимости в γ при продаже (пример)    
+  const refund = Math.floor(BUILDINGS[id].priceGamma * 0.5);    
+  delete appUser.buildings[id];    
+  appUser.balances.gamma = (appUser.balances.gamma || 0) + refund;    
+  await userRef.update({ balances: appUser.balances, buildings: appUser.buildings });    
+  renderAll();    
+}    
+    
+/* ========= SHOP ========= */    
+function renderShop(){    
+  const root = document.getElementById('shopList'); root.innerHTML = '';    
+  for(const id of Object.keys(BUILDINGS)){    
+    const conf = BUILDINGS[id];    
+    const have = !!appUser.buildings[id];    
+    const canBuy = !have && ((appUser.balances.gamma||0) >= conf.priceGamma);    
+    const el = document.createElement('div'); el.className='shop-item';    
+    el.innerHTML =     
+      <div style="display:flex;gap:10px;align-items:center">    
+        <div class="img">${conf.emoji}</div>    
+        <div>    
+          <div style="font-weight:700">${conf.name}</div>    
+          <div class="muted">${have? 'Куплено' : (conf.priceGamma + ' γ')}</div>    
+        </div>    
+      </div>    
+      <div>    
+        <button class="btn ${canBuy? '':'secondary'}" ${canBuy? '':'disabled'} data-buy="${id}">${have? '—' : 'Купить'}</button>    
+      </div>;    
+    root.appendChild(el);    
+  }    
+  root.querySelectorAll('[data-buy]').forEach(b=>b.addEventListener('click', onBuy));    
+}    
+    
+async function onBuy(e){    
+  const id = e.currentTarget.getAttribute('data-buy');    
+  const conf = BUILDINGS[id];    
+  if(appUser.buildings[id]) return;    
+  if((appUser.balances.gamma||0) < conf.priceGamma) return alert('Недостаточно γ');    
+  appUser.balances.gamma -= conf.priceGamma;    
+  appUser.buildings[id] = true;    
+  // при первой покупке запускаем добычу на 1 час (повторный запуск нужен вручную)    
+  appUser.productionActiveUntil = Date.now() + 3600000;    
+  await userRef.update({ balances: appUser.balances, buildings: appUser.buildings, productionActiveUntil: appUser.productionActiveUntil });    
+  renderAll();    
+}    
+    
+/* ========= RESTART PRODUCTION ========= */    
+document.getElementById('btnRestartProduction').addEventListener('click', async ()=>{    
+  // Запускаем добычу ещё на 1 час  
+if(Object.keys(appUser.buildings||{}).length === 0) return alert('У вас нет зданий. Купите хотя бы одно.');    
+  appUser.productionActiveUntil = Date.now() + 3600000;    
+  await userRef.update({ productionActiveUntil: appUser.productionActiveUntil });    
+  alert('Добыча запущена ещё на 1 час.');    
+  renderAll();    
+});    
+    
+/* ========= WHEELS ========= */    
+const DAY = 86400000;    
+document.getElementById('btnEnergyWheel').onclick = async ()=>{    
+  const now = Date.now(), last = appUser.wheels?.energyAt || 0;    
+  if(now - last < DAY) return alert('Рулетка энергии доступна раз в сутки.');    
+  const gain = Math.floor(100 + Math.random()*1901);    
+  appUser.balances.energy += gain;    
+  appUser.wheels.energyAt = now;    
+  await userRef.update({ balances: appUser.balances, wheels: appUser.wheels });    
+  renderAll(); alert('Вы получили '+gain+' энергии!');    
+};    
+document.getElementById('btnLuckWheel').onclick = async ()=>{    
+  if((appUser.balances.ton||0) < 1) return alert('Нужно минимум 1 TON на балансе.');    
+  appUser.balances.ton -= 1;    
+  let reward = Math.random() < 0.99 ? +(0.5 + Math.random()*0.5).toFixed(2) : +(1 + Math.random()*4).toFixed(2);    
+  appUser.balances.ton += reward;    
+  await userRef.update({ balances: appUser.balances });    
+  renderAll(); alert('Рулетка удачи: выигрыш '+reward+' TON');    
+};    
+    
+/* ========= PREMIUM ========= */    
+const PREMIUM_PRICES = { monthly:5, forever:30 };    
+document.getElementById('btnPremium').onclick = async ()=>{    
+  const pick = prompt('Премиум: \\n1) Месяц — 5 TON\\n2) Навсегда — 30 TON\\nВведите 1 или 2');    
+  if(!pick) return;    
+  const price = pick === '2' ? PREMIUM_PRICES.forever : PREMIUM_PRICES.monthly;    
+  if((appUser.balances.ton||0) < price) return alert('Недостаточно TON');    
+  appUser.balances.ton -= price;    
+  appUser.premium = true;    
+  appUser.balances.gamma = (appUser.balances.gamma||0) + 2000; // +2000 γ    
+  await userRef.update({ balances: appUser.balances, premium: appUser.premium });    
+  renderAll(); alert('Премиум активирован: +20% к доходу и +2000 γ');    
+};    
+    
+/* ========= EXCHANGE & TON CONNECT ========= */    
+function addTon(v){ appUser.balances.ton = +(Math.max(0,(appUser.balances.ton||0) + v)).toFixed(2); }    
+function addGamma(v){ appUser.balances.gamma = Math.max(0,(appUser.balances.gamma||0) + v); }    
+function addEnergy(v){ appUser.balances.energy = Math.max(0,(appUser.balances.energy||0) + v); }    
+    
+document.getElementById('btnGammaToTon').onclick = async ()=>{    
+  const amtGamma = +prompt('Сколько γ обменять на TON? (100000 γ = 1 TON)');    
+  if(!amtGamma || amtGamma<=0) return;    
+  if((appUser.balances.gamma||0) < amtGamma) return alert('Недостаточно γ');    
+  const lots = Math.floor(amtGamma / RATES.GAMMA_TO_TON);    
+  if(lots <= 0) return alert('Минимум 100000 γ');    
+  addGamma(-lots * RATES.GAMMA_TO_TON);    
+  addTon(lots * 1);    
+  await userRef.update({ balances: appUser.balances });    
+  renderAll();    
+};    
+    
+document.getElementById('btnEnergyToTon').onclick = async ()=>{    
+  const amt = +prompt('Сколько энергии обменять? (10000 энергии = 10 γ)');    
+  if(!amt || amt<=0) return;    
+  if((appUser.balances.energy||0) < amt) return alert('Недостаточно энергии');    
+  const lots = Math.floor(amt / 10000);    
+  if(lots <= 0) return alert('Минимум 10000 энергии');    
+  addEnergy(-lots * 10000);    
+  addGamma(lots * RATES.ENERGY_TO_GAMMA_PER_10K);    
+  await userRef.update({ balances: appUser.balances });    
+  renderAll();    
+};    
+    
+/* ========= DEPOSIT via TON Connect (с комиссия 10%) ========= */    
+document.getElementById('btnDepositTon').onclick = async ()=>{    
+  try{ await tonConnectUI.connectWallet(); }catch(e){}    
+  const amt = +prompt('Сумма депозита в TON (1..100)');    
+  if(!amt  amt < 1  amt > 100) return alert('Введите от 1 до 100 TON');    
+  const memo = 'dep-'+appUser.uid+'-'+Date.now();  
+const tonAmountNano = BigInt(Math.round(amt * 1e9)).toString();    
+  await tonConnectUI.sendTransaction({    
+    validUntil: Math.floor(Date.now()/1000) + 600,    
+    messages: [{ address: OWNER_TON_WALLET, amount: tonAmountNano, stateInit: undefined, payload: undefined }],    
+  });    
+  document.getElementById('depositStatus').textContent = 'Проверяем транзакцию в сети TON…';    
+  // сообщаем бэку — он найдёт платёж и зачислит (с учётом комиссии 10%)    
+  const res = await fetch(getApi('/api/checkDeposit'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, amount: amt })});    
+  const data = await res.json();    
+  if(data.ok){ addTon( +( (amt * 0.9).toFixed(2) ) ); // front покажет зачисленное 90%    
+    if(!appUser.firstDepositAt) appUser.firstDepositAt = Date.now();    
+    await userRef.update({ balances: appUser.balances, firstDepositAt: appUser.firstDepositAt });    
+    renderAll(); document.getElementById('depositStatus').textContent = 'Депозит найден и зачислен (с учётом комиссии).';    
+  } else {    
+    document.getElementById('depositStatus').textContent = 'Оплата не найдена автоматически. Проверка продолжится на сервере.';    
+  }    
+};    
+    
+/* ========= WITHDRAW ========= */    
+document.getElementById('btnWithdraw').onclick = async ()=>{    
+  const address = document.getElementById('withdrawAddress').value.trim();    
+  const amount = +document.getElementById('withdrawAmount').value;    
+  if(!address  !amount  amount <= 0) return alert('Укажите адрес и сумму');    
+  if((appUser.balances.ton || 0) < amount) return alert('Недостаточно TON');    
+  const fee = +(amount * 0.10).toFixed(6); // 10% комиссия    
+  const totalDeduct = +(amount + fee).toFixed(6);    
+  if((appUser.balances.ton || 0) < totalDeduct) return alert('Недостаточно TON для выплаты с учётом комиссии');    
+  // списываем сразу    
+  appUser.balances.ton = +( (appUser.balances.ton || 0) - totalDeduct ).toFixed(6);    
+  await userRef.update({ balances: appUser.balances });    
+  // отправляем заявку на бэкенд (админ обработает реальный перевод)    
+  const res = await fetch(getApi('/api/requestWithdrawal'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, address, amount })});    
+  const data = await res.json();    
+  if(data.ok){ renderAll(); document.getElementById('withdrawStatus').textContent = 'Заявка на вывод принята. Комиссия 10% удержана.'; }    
+  else { document.getElementById('withdrawStatus').textContent = 'Ошибка создания заявки.'; }    
+};    
+    
+/* ========= LEADERBOARD ========= */    
+function subscribeLeaderboard(){    
+  const ref = db.ref('users');    
+  ref.orderByChild('balances/energy').limitToLast(50).on('value', snap=>{    
+    const list=[]; snap.forEach(ch=>{ const v=ch.val(); list.push({uid:ch.key, energy:v?.balances?.energy||0}); });    
+    list.sort((a,b)=>b.energy-a.energy);    
+    const root = document.getElementById('leaderboard'); root.innerHTML='';    
+    list.forEach((it,i)=>{ const div=document.createElement('div'); div.className='shop-item'; div.innerHTML=<div>#${i+1}</div><div class="muted">uid:${it.uid.slice(0,6)}…</div><div><b>${n(it.energy)}</b> э</div>; root.appendChild(div); });    
+  });    
+}    
+    
+/* ========= NAV ========= */    
+const navItems = document.querySelectorAll('.nav .item');    
+navItems.forEach(btn=>btn.addEventListener('click',()=>{    
+  navItems.forEach(b=>b.classList.remove('active'));    
+  btn.classList.add('active');    
+  const v = btn.getAttribute('data-view');    
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));    
+  document.getElementById('view-'+v).classList.add('active');    
+}));    
+    
+/* ========= HELPERS ========= */    
+function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')).replace(/\/$/,'') + path; }  
+</script>  
+</body>    
+  </html>  
