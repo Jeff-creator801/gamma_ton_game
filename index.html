@@ -1,5 +1,4 @@
 <!doctype html>
-
 <html lang="ru">  
 <head>  
   <meta charset="utf-8" />  
@@ -21,7 +20,7 @@
     .views{flex:1;position:relative;overflow:hidden}  
     .view{position:absolute;inset:0;padding:12px 12px 88px;overflow-y:auto;opacity:0;transform:translateX(20px);transition:opacity .25s ease,transform .3s ease}  
     .view.active{opacity:1;transform:translateX(0)}  
-    .card{background:linear-gradient(180deg,#121a30,#0e1426);Border:1px solid #ffffff10;border-radius:var(--radius);padding:14px;margin:10px 0}  
+    .card{background:linear-gradient(180deg,#121a30,#0e1426);border:1px solid #ffffff10;border-radius:var(--radius);padding:14px;margin:10px 0}  
     .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}  
     .stat{background:linear-gradient(180deg,#141e38,#0f1730);border-radius:12px;padding:10px;text-align:center}  
     .muted{opacity:.8;font-size:13px}  
@@ -448,41 +447,51 @@ navItems.forEach(btn=>btn.addEventListener('click',()=>{
   
 /* ========= HELPERS ========= */  
 function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')).replace(/\/$/,'') + path; }
-// Вставьте этот код в конец вашего основного <script> (перед </script>) или подключите как отдельный файл после основного скрипта.
-// Он добавит iframe-рекламу динамически и без вмешательства в остальной HTML/JS.
 
-(function insertStickyAd(){
+</script>
+
+<!-- Безопасная динамическая вставка sticky-рекламы (добавлено отдельно, не меняет логику приложения) -->
+<script id="ad-inject">
+(function(){
   try{
-    // если уже добавлен — не добавляем повторно
+    // Не добавляем повторно
     if(document.getElementById('aads-container')) return;
 
-    const ad = document.createElement('div');
+    // Создаём стиль, чтобы навигация была над баннером (визуально видима и кликабельна)
+    var style = document.createElement('style');
+    style.id = 'aads-nav-style';
+    style.textContent = '.nav{z-index:100000 !important;}';
+    document.head.appendChild(style);
+
+    // Создаём контейнер рекламы
+    var ad = document.createElement('div');
     ad.id = 'aads-container';
-    // позиционируем чуть выше навигации (nav занимает ~56-88px по стилю), чтобы навигация оставалась видимой
+    // Позиция: прикреплён к низу экрана
     ad.style.position = 'fixed';
     ad.style.left = '0';
     ad.style.right = '0';
-    ad.style.bottom = '64px';
+    ad.style.bottom = '0';
     ad.style.zIndex = '99999';
     ad.style.display = 'flex';
     ad.style.justifyContent = 'center';
-    ad.style.padding = '6px 8px';
     ad.style.pointerEvents = 'auto';
+    ad.style.padding = '6px 8px';
     ad.style.background = 'transparent';
 
-    const inner = document.createElement('div');
+    // Ограничиваем ширину и центрируем баннер
+    var inner = document.createElement('div');
     inner.style.width = '100%';
     inner.style.maxWidth = '1100px';
     inner.style.margin = 'auto';
     inner.style.textAlign = 'center';
 
-    const frameWrap = document.createElement('div');
+    var frameWrap = document.createElement('div');
     frameWrap.id = 'frame';
     frameWrap.style.width = '100%';
     frameWrap.style.margin = 'auto';
     frameWrap.style.display = 'block';
 
-    const iframe = document.createElement('iframe');
+    var iframe = document.createElement('iframe');
     iframe.setAttribute('data-aa','2410989');
     iframe.src = '//acceptable.a-ads.com/2410989/?size=Adaptive';
     iframe.style.border = '0';
@@ -491,27 +500,25 @@ function getApi(path){ const origin = window.location.origin; return (window.REN
     iframe.style.height = '90px';
     iframe.style.overflow = 'hidden';
     iframe.style.display = 'block';
+    iframe.style.background = 'transparent';
 
     frameWrap.appendChild(iframe);
     inner.appendChild(frameWrap);
     ad.appendChild(inner);
 
-    document.body.appendChild(ad);
+    // Вставляем в body после загрузки DOM, чтобы не мешать выполнению основного скрипта
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(ad); });
+    } else {
+      document.body.appendChild(ad);
+    }
+
   }catch(e){
-    console.error('Ad insert failed', e);
+    // Не ломаем приложение, в случае ошибки логируем в консоль
+    console.error('failed to insert ad container', e);
   }
 })();
 </script>
-
-<!-- ВСТАВЛЁННАЯ РЕКЛАМА: закреплённый снизу с iframe (без кнопки отключения) -->
-<!-- Баннер расположен чуть выше навигационной панели (bottom:64px), чтобы панель навигации оставалась видимой -->
-<div id="aads-container" style="position:fixed;left:0;right:0;bottom:64px;z-index:99999;display:flex;justify-content:center;padding:6px 8px;pointer-events:auto">
-  <div style="width:100%;max-width:1100px;margin:auto;text-align:center;">
-    <div id="frame" style="width:100%;margin:auto;display:block;">
-      <iframe data-aa="2410989" src="//acceptable.a-ads.com/2410989/?size=Adaptive" style="border:0;padding:0;width:100%;height:90px;overflow:hidden;display:block;"></iframe>
-    </div>
-  </div>
-</div>
 <!-- Конец блока рекламы -->
 
 </body>  
