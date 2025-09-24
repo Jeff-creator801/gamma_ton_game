@@ -22,7 +22,7 @@
     .float-right{left:auto;right:12px}
     .round{width:46px;height:46px;border-radius:50%;background:linear-gradient(160deg,#1e2a4f,#0f1630);display:grid;place-items:center;border:1px solid #ffffff14;cursor:pointer}
     .views{flex:1;position:relative;overflow:hidden}
-    .view{position:absolute;inset:0;padding:12px 12px 88px;overflow-y:auto;opacity:0;transform:translateX(20px);transition:opacity .25s ease,transform .3s ease}
+    .view{position:absolute;inset:0;padding:12px 12px 140px;overflow-y:auto;opacity:0;transform:translateX(20px);transition:opacity .25s ease,transform .3s ease}
     .view.active{opacity:1;transform:translateX(0)}
     .card{background:linear-gradient(180deg,#121a30,#0e1426);border:1px solid #ffffff10;border-radius:var(--radius);padding:14px;margin:10px 0}
     .stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
@@ -32,11 +32,11 @@
     .img{width:54px;height:54px;border-radius:12px;background:#0b1226;display:grid;place-items:center}
     .btn{border:none;background:linear-gradient(180deg,#5c8dff,#3b6dff);padding:10px 14px;border-radius:12px;color:white;font-weight:700;cursor:pointer}
     .btn.secondary{background:linear-gradient(180deg,#2a3355,#1a2344)}
-    .nav{position:fixed;inset:auto 0 0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-top:1px solid #ffffff10;background:linear-gradient(180deg,#0b0f1aee,#0b0f1aff);z-index:100000}
+    .nav{position:fixed;inset:auto 0 0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-top:1px solid #ffffff10;background:linear-gradient(180deg,#0b0f1aee,#0b0f1aff);z-index:100050}
     .nav .item{display:flex;flex-direction:column;align-items:center;gap:4px;color:#cfe0ffcc;font-size:11px;cursor:pointer}
     input{background:#0b1226;border:1px solid #ffffff18;padding:10px;border-radius:10px;color:#fff}
     /* admin panel */
-    #admin-panel{position:fixed;right:12px;top:80px;width:520px;max-width:95vw;max-height:80vh;overflow:auto;background:linear-gradient(180deg,#0f1630,#071025);border-radius:12px;padding:12px;border:1px solid #ffffff18;z-index:100010;display:none}
+    #admin-panel{position:fixed;right:12px;top:80px;width:520px;max-width:95vw;max-height:80vh;overflow:auto;background:linear-gradient(180deg,#0f1630,#071025);border-radius:12px;padding:12px;border:1px solid #ffffff18;z-index:100200;display:none}
     .table{width:100%;border-collapse:collapse}
     .table tr{border-bottom:1px solid #ffffff10}
     .table td{padding:6px;font-size:13px}
@@ -47,6 +47,8 @@
     .ok{background:linear-gradient(180deg,#2b6b3a,#1b4b28)}
     /* when ad exists, push up views */
     body.has-sticky-ad .views{padding-bottom:120px}
+    /* placeholder ad style */
+    #aads-placeholder{width:100%;max-width:1100px;height:90px;background:#07102a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9fb7ff66;font-size:14px}
   </style>
 </head>
 <body>
@@ -176,7 +178,7 @@
 </div>
 
 <script>
-/* ---------------- CONFIG ---------------- */
+/* ===== CONFIG (owner wallet set as requested) ===== */
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyA2mxa0BR-V7FtqCFxkXtSoOTGUFXbI4M4",
   authDomain: "gammaton-fdbfd.firebaseapp.com",
@@ -194,13 +196,13 @@ const BUILDINGS = {
   water: { id:'water', name:'Водная батарея',    priceGamma:76, earnPerHour:5700, emoji:'💧' }
 };
 
-/* ---------------- STATE ---------------- */
+/* ===== STATE ===== */
 let appUser = { uid:null, premium:false, balances:{energy:0,gamma:0,ton:0}, buildings:{}, lastTick:Date.now(), productionActiveUntil:0, wheels:{energyAt:0}, wallet:null };
 let db, auth, userRef, storage;
 let tonConnectUI;
 let isAdmin=false, adminWallet=null;
 
-/* ---------------- HELPERS ---------------- */
+/* ===== HELPERS ===== */
 function n(v){ return (v||0).toLocaleString('ru-RU'); }
 function updateBalancesUI(){
   const e=document.getElementById('energy'), g=document.getElementById('gamma'), t=document.getElementById('ton');
@@ -208,130 +210,23 @@ function updateBalancesUI(){
   if(g) g.textContent = n(appUser.balances.gamma);
   if(t) t.textContent = (appUser.balances.ton||0).toFixed(2);
 }
+function normalizeAddr(a){ return (a||'').toString().replace(/\s+/g,'').trim(); }
 
-/* ---------------- RENDER ---------------- */
-function renderBuildingsOwned(){
-  const root=document.getElementById('buildingsList'); if(!root) return; root.innerHTML='';
-  for(const id of Object.keys(BUILDINGS)){
-    if(!appUser.buildings?.[id]) continue;
-    const conf = BUILDINGS[id];
-    const el=document.createElement('div'); el.className='shop-item';
-    el.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:center">
-        <div class="img">${conf.emoji}</div>
-        <div>
-          <div style="font-weight:700">${conf.name}</div>
-          <div class="muted">Доход: ${n(conf.earnPerHour)} энергия/ч</div>
-        </div>
-      </div>
-      <div><button class="btn secondary" data-sell="${id}">Продать</button></div>
-    `;
-    root.appendChild(el);
-  }
-  root.querySelectorAll('[data-sell]').forEach(b=>b.addEventListener('click', onSell));
-}
+/* ===== RENDER ===== */
+function renderBuildingsOwned(){ const root=document.getElementById('buildingsList'); if(!root) return; root.innerHTML=''; for(const id of Object.keys(BUILDINGS)){ if(!appUser.buildings?.[id]) continue; const conf=BUILDINGS[id]; const el=document.createElement('div'); el.className='shop-item'; el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><div class="img">${conf.emoji}</div><div><div style="font-weight:700">${conf.name}</div><div class="muted">Доход: ${n(conf.earnPerHour)} энергия/ч</div></div></div><div><button class="btn secondary" data-sell="${id}">Продать</button></div>`; root.appendChild(el); } root.querySelectorAll('[data-sell]').forEach(b=>b.addEventListener('click', onSell)); }
+function renderShop(){ const root=document.getElementById('shopList'); if(!root) return; root.innerHTML=''; for(const id of Object.keys(BUILDINGS)){ const conf=BUILDINGS[id]; const have=!!appUser.buildings?.[id]; const gammaBal=Number((appUser.balances && appUser.balances.gamma) || 0); const price=Number(conf.priceGamma || 0); const canBuy=!have && (gammaBal>=price); const item=document.createElement('div'); item.className='shop-item'; item.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><div class="img">${conf.emoji}</div><div><div style="font-weight:700">${conf.name}</div><div class="muted">${have ? 'Куплено' : (conf.priceGamma + ' γ')}</div></div></div><div></div>`; const btn=document.createElement('button'); btn.className='btn' + (canBuy ? '' : ' secondary'); btn.disabled = !canBuy; btn.dataset.buy = id; btn.textContent = have ? '—' : 'Купить'; btn.addEventListener('click', onBuy); item.querySelector('div:last-child').appendChild(btn); root.appendChild(item); } }
 
-function renderShop(){
-  const root=document.getElementById('shopList'); if(!root) return; root.innerHTML='';
-  for(const id of Object.keys(BUILDINGS)){
-    const conf = BUILDINGS[id];
-    const have = !!appUser.buildings?.[id];
-    const gammaBal = Number((appUser.balances && appUser.balances.gamma) || 0);
-    const price = Number(conf.priceGamma || 0);
-    const canBuy = !have && (gammaBal >= price);
+/* ===== BUY / SELL ===== */
+async function onSell(e){ try{ const id=e.currentTarget.getAttribute('data-sell'); if(!id) return; const refund=Math.floor(BUILDINGS[id].priceGamma*0.5); delete appUser.buildings[id]; appUser.balances.gamma=(appUser.balances.gamma||0)+refund; if(userRef) await userRef.update({ balances: appUser.balances, buildings: appUser.buildings }); renderAll(); }catch(err){ console.error('onSell',err); alert('Ошибка при продаже'); } }
+async function onBuy(e){ const btn=e.currentTarget; try{ const id=btn?.dataset?.buy; if(!id) return; const conf=BUILDINGS[id]; if(!conf) return alert('Здание не найдено'); if(appUser.buildings?.[id]) return alert('Уже куплено'); const gammaBal=Number((appUser.balances && appUser.balances.gamma) || 0); const price=Number(conf.priceGamma || 0); if(gammaBal<price) return alert('Недостаточно γ'); btn.disabled=true; btn.textContent='Покупка...'; appUser.balances.gamma = gammaBal - price; appUser.buildings = appUser.buildings || {}; appUser.buildings[id]=true; appUser.productionActiveUntil = Date.now() + 3600000; if(userRef) await userRef.update({ balances: appUser.balances, buildings: appUser.buildings, productionActiveUntil: appUser.productionActiveUntil }); renderAll(); }catch(err){ console.error('onBuy',err); alert('Ошибка при покупке'); if(btn){ btn.disabled=false; btn.textContent='Купить'; } } }
 
-    const item=document.createElement('div'); item.className='shop-item';
-    item.innerHTML = `
-      <div style="display:flex;gap:10px;align-items:center">
-        <div class="img">${conf.emoji}</div>
-        <div>
-          <div style="font-weight:700">${conf.name}</div>
-          <div class="muted">${have ? 'Куплено' : (conf.priceGamma + ' γ')}</div>
-        </div>
-      </div>
-      <div></div>
-    `;
-    const btn=document.createElement('button'); btn.className='btn' + (canBuy ? '' : ' secondary'); btn.disabled = !canBuy; btn.dataset.buy = id; btn.textContent = have ? '—' : 'Купить';
-    btn.addEventListener('click', onBuy);
-    item.querySelector('div:last-child').appendChild(btn);
-    root.appendChild(item);
-  }
-}
+/* ===== PRODUCTION ===== */
+function totalHourly(){ let sum=0; for(const id of Object.keys(BUILDINGS)) if(appUser.buildings[id]) sum+=BUILDINGS[id].earnPerHour; if(appUser.premium) sum = Math.floor(sum * 1.2); return sum; }
+function tickEnergy(){ const now=Date.now(), last=appUser.lastTick||now; if(appUser.productionActiveUntil>last){ const activeFrom=last, activeTo=Math.min(now, appUser.productionActiveUntil); const hours=Math.max(0,(activeTo-activeFrom)/3600000); const perH=totalHourly(); const produced=Math.floor(perH*hours); if(produced>0) appUser.balances.energy=(appUser.balances.energy||0)+produced; } appUser.lastTick=now; if(userRef){ try{ userRef.update({ balances: appUser.balances, lastTick: appUser.lastTick, productionActiveUntil: appUser.productionActiveUntil }); }catch(e){} } updateBalancesUI(); setTimeout(tickEnergy,20000); }
 
-/* ---------------- BUY / SELL ---------------- */
-async function onSell(e){
-  try{
-    const id = e.currentTarget.getAttribute('data-sell');
-    if(!id) return;
-    const refund = Math.floor(BUILDINGS[id].priceGamma * 0.5);
-    delete appUser.buildings[id];
-    appUser.balances.gamma = (appUser.balances.gamma || 0) + refund;
-    if(userRef) await userRef.update({ balances: appUser.balances, buildings: appUser.buildings });
-    renderAll();
-  }catch(err){ console.error('onSell',err); alert('Ошибка при продаже'); }
-}
-
-async function onBuy(e){
-  const btn = e.currentTarget;
-  try{
-    const id = btn?.dataset?.buy;
-    if(!id) return;
-    const conf = BUILDINGS[id];
-    if(!conf) return alert('Здание не найдено');
-    if(appUser.buildings?.[id]) return alert('Уже куплено');
-    const gammaBal = Number((appUser.balances && appUser.balances.gamma) || 0);
-    const price = Number(conf.priceGamma || 0);
-    if(gammaBal < price) return alert('Недостаточно γ');
-
-    btn.disabled = true; btn.textContent = 'Покупка...';
-
-    appUser.balances.gamma = gammaBal - price;
-    appUser.buildings = appUser.buildings || {};
-    appUser.buildings[id] = true;
-    appUser.productionActiveUntil = Date.now() + 3600000;
-
-    if(userRef){
-      await userRef.update({ balances: appUser.balances, buildings: appUser.buildings, productionActiveUntil: appUser.productionActiveUntil });
-    } else {
-      console.warn('userRef not set');
-    }
-
-    renderAll();
-  }catch(err){
-    console.error('onBuy',err);
-    alert('Ошибка при покупке');
-    if(btn){ btn.disabled=false; btn.textContent='Купить'; }
-  }
-}
-
-/* ---------------- PRODUCTION ---------------- */
-function totalHourly(){
-  let sum=0;
-  for(const id of Object.keys(BUILDINGS)) if(appUser.buildings[id]) sum += BUILDINGS[id].earnPerHour;
-  if(appUser.premium) sum = Math.floor(sum * 1.2);
-  return sum;
-}
-
-function tickEnergy(){
-  const now = Date.now(), last = appUser.lastTick || now;
-  if(appUser.productionActiveUntil > last){
-    const activeFrom = last, activeTo = Math.min(now, appUser.productionActiveUntil);
-    const hours = Math.max(0, (activeTo - activeFrom) / 3600000);
-    const perH = totalHourly();
-    const produced = Math.floor(perH * hours);
-    if(produced > 0) appUser.balances.energy = (appUser.balances.energy || 0) + produced;
-  }
-  appUser.lastTick = now;
-  if(userRef){
-    try{ userRef.update({ balances: appUser.balances, lastTick: appUser.lastTick, productionActiveUntil: appUser.productionActiveUntil }); }catch(e){}
-  }
-  updateBalancesUI();
-  setTimeout(tickEnergy, 20000);
-}
-
-/* ---------------- NAV (robust delegation) ---------------- */
-(function installNavHandler(){
-  const nav = document.querySelector('.nav');
+/* ===== NAV (delegation) ===== */
+(function installNav(){
+  const nav=document.querySelector('.nav');
   if(!nav) return;
   nav.addEventListener('click', function(e){
     try{
@@ -340,89 +235,139 @@ function tickEnergy(){
       if(btn.disabled) return;
       const viewName = btn.getAttribute('data-view');
       if(!viewName) return;
-      // switch active on nav
-      Array.from(nav.querySelectorAll('.item')).forEach(x => x.classList.remove('active'));
+      Array.from(nav.querySelectorAll('.item')).forEach(x=>x.classList.remove('active'));
       btn.classList.add('active');
-      // switch views
-      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
       const target = document.getElementById('view-' + viewName);
-      if(!target){ console.error('view not found', viewName); alert('Ошибка: view не найден: ' + viewName); return; }
+      if(!target){ console.error('view not found', viewName); return; }
       target.classList.add('active');
       target.setAttribute('tabindex','-1'); target.focus && target.focus();
-    }catch(err){ console.error('nav handler error', err); }
+    }catch(err){ console.error('nav handler error',err); }
   }, { passive: true });
 })();
 
-/* ---------------- ADMIN helpers & UI rendering ---------------- */
-function matchesFilter(text){
-  const f=(document.getElementById('admin-filter')?.value||'').toLowerCase().trim();
-  if(!f) return true;
-  return (''+text).toLowerCase().includes(f);
-}
-
-/* Admin DB actions (approve/reject/modify) implemented later in listeners code */
-
-/* ---------------- AD INJECTION (ensure nav above ad) ---------------- */
+/* ===== AD INJECTION (https, fallback, kept under nav) ===== */
 function injectAd(){
   try{
     if(document.getElementById('aads-container')) return;
     const adHeight = 90, gap = 6;
     document.body.classList.add('has-sticky-ad');
 
-    // ensure nav stays above ad
     const style = document.createElement('style');
     style.id = 'aads-nav-style';
-    style.textContent = `.nav{bottom:${adHeight + gap}px !important; z-index:100000 !important}`;
+    style.textContent = `.nav{bottom:${adHeight + gap}px !important; z-index:100050 !important}`;
     document.head.appendChild(style);
 
     const ad = document.createElement('div'); ad.id = 'aads-container';
-    ad.style.position = 'fixed'; ad.style.left = '0'; ad.style.right = '0'; ad.style.bottom = '0';
-    // place ad under nav visually: lower z-index than nav
-    ad.style.zIndex = '9990';
-    ad.style.display = 'flex'; ad.style.justifyContent = 'center'; ad.style.pointerEvents = 'auto'; ad.style.padding = '6px 8px'; ad.style.background = 'transparent';
+    ad.style.position='fixed'; ad.style.left='0'; ad.style.right='0'; ad.style.bottom='0';
+    // make sure ad is under nav (nav z-index = 100050)
+    ad.style.zIndex='9990';
+    ad.style.display='flex'; ad.style.justifyContent='center'; ad.style.pointerEvents='auto'; ad.style.padding='6px 8px'; ad.style.background='transparent';
 
-    const inner = document.createElement('div'); inner.style.width = '100%'; inner.style.maxWidth = '1100px'; inner.style.margin = 'auto'; inner.style.textAlign = 'center';
+    const inner = document.createElement('div'); inner.style.width='100%'; inner.style.maxWidth='1100px'; inner.style.margin='auto'; inner.style.textAlign='center';
     const wrap = document.createElement('div'); wrap.style.width='100%'; wrap.style.height = adHeight + 'px'; wrap.style.overflow='hidden';
+
+    // use https explicit URL to avoid mixed-content issues
     const iframe = document.createElement('iframe');
     iframe.src = 'https://acceptable.a-ads.com/2410989/?size=Adaptive';
     iframe.style.border='0'; iframe.style.width='100%'; iframe.style.height = adHeight + 'px'; iframe.style.display='block'; iframe.style.background='transparent';
+    iframe.onload = function(){ console.info('Ad iframe loaded'); };
+    iframe.onerror = function(){ console.warn('Ad iframe failed to load, inserting placeholder'); const ph = document.createElement('div'); ph.id='aads-placeholder'; ph.textContent='Реклама'; wrap.innerHTML=''; wrap.appendChild(ph); };
+
     wrap.appendChild(iframe); inner.appendChild(wrap); ad.appendChild(inner);
     document.body.appendChild(ad);
   }catch(e){ console.error('ad inject failed', e); }
 }
 
-/* ---------------- INIT ---------------- */
+/* ===== ADMIN helpers & UI rendering ===== */
+function matchesFilter(text){ const f=(document.getElementById('admin-filter')?.value||'').toLowerCase().trim(); if(!f) return true; return (''+text).toLowerCase().includes(f); }
+
+/* ===== SUBSCRIPTIONS & ADMIN LISTENERS ===== */
+let __admin_withdrawals=[], __admin_users=[], __admin_deposits=[];
+let withdrawalsRef=null, usersRef=null, depositsRef=null;
+
+function startAdminListeners(){
+  if(withdrawalsRef) withdrawalsRef.off();
+  if(usersRef) usersRef.off();
+  if(depositsRef) depositsRef.off();
+
+  withdrawalsRef = db.ref('withdrawals');
+  withdrawalsRef.on('value', snap => { const arr=[]; snap.forEach(ch=>arr.push({ id: ch.key, val: ch.val() })); __admin_withdrawals = arr; renderAdminWithdrawals(); });
+
+  usersRef = db.ref('users');
+  usersRef.on('value', snap => { const arr=[]; snap.forEach(ch=>arr.push({ uid: ch.key, val: ch.val() })); __admin_users = arr; renderAdminUsers(); });
+
+  depositsRef = db.ref('depositRequests');
+  depositsRef.on('value', snap => { const arr=[]; snap.forEach(ch=>arr.push({ id: ch.key, val: ch.val() })); __admin_deposits = arr; renderAdminDeposits(); });
+}
+
+function renderAdminWithdrawals(){ const root=document.getElementById('admin-withdrawals'); if(!root) return; root.innerHTML=''; const list = (__admin_withdrawals||[]).slice().reverse(); list.forEach(item=>{ const v=item.val; if(!matchesFilter(v.uid||v.address||'')) return; const tr=document.createElement('tr'); tr.innerHTML = `<td>${item.id}</td><td class="small-muted">${new Date(v.createdAt).toLocaleString()}</td><td>${v.uid||''}</td><td>${v.wallet||v.address||''}</td><td>${v.amount} TON</td><td>${v.status}</td>`; const td=document.createElement('td'); const a=document.createElement('button'); a.className='btn'; a.textContent='Одобрить'; a.addEventListener('click', ()=>adminApproveWithdrawal(item.id, v)); const r=document.createElement('button'); r.className='btn secondary'; r.textContent='Отклонить'; r.addEventListener('click', ()=>adminRejectWithdrawal(item.id, v)); const b=document.createElement('button'); b.className='btn danger'; b.textContent='Заблокировать'; b.addEventListener('click', ()=>adminBlockUser(v.uid)); td.appendChild(a); td.appendChild(r); td.appendChild(b); tr.appendChild(td); root.appendChild(tr); }); }
+function renderAdminUsers(){ const root=document.getElementById('admin-users'); if(!root) return; root.innerHTML=''; const list = (__admin_users||[]).slice().reverse(); list.forEach(u=>{ if(!matchesFilter(u.uid) && !matchesFilter(u.val?.wallet||'')) return; const v=u.val||{}; const tr=document.createElement('tr'); tr.innerHTML=`<td>${u.uid}</td><td>${v.wallet||''}</td><td>γ:${n(v.balances?.gamma||0)} / э:${n(v.balances?.energy||0)} / TON:${(v.balances?.ton||0).toFixed(2)}</td>`; const td=document.createElement('td'); const edit=document.createElement('button'); edit.className='btn'; edit.textContent='Изменить баланс'; edit.addEventListener('click', ()=>adminEditBalances(u.uid, v)); const toggle=document.createElement('button'); toggle.className='btn secondary'; toggle.textContent = v.blocked ? 'Разблокировать' : 'Заблокировать'; toggle.addEventListener('click', ()=>adminToggleBlock(u.uid, v)); td.appendChild(edit); td.appendChild(toggle); tr.appendChild(td); root.appendChild(tr); }); }
+function renderAdminDeposits(){ const root=document.getElementById('admin-deposits'); if(!root) return; root.innerHTML=''; const list = (__admin_deposits||[]).slice().reverse(); list.forEach(item=>{ const v=item.val; if(!matchesFilter(v.uid||v.wallet||'')) return; const tr=document.createElement('tr'); tr.innerHTML=`<td>${item.id}</td><td class="small-muted">${new Date(v.createdAt).toLocaleString()}</td><td>${v.uid||''}</td><td>${v.wallet||''}</td><td>${v.amount} TON</td><td>${v.status}</td>`; const td=document.createElement('td'); const view=document.createElement('button'); view.className='btn'; view.textContent='Просмотр'; view.addEventListener('click', ()=>{ if(v.proofUrl) window.open(v.proofUrl,'_blank'); else alert('Скрин отсутствует'); }); const accept=document.createElement('button'); accept.className='btn'; accept.textContent='Зачислить'; accept.addEventListener('click', ()=>adminApproveDeposit(item.id, v)); const reject=document.createElement('button'); reject.className='btn secondary'; reject.textContent='Отклонить'; reject.addEventListener('click', ()=>adminRejectDeposit(item.id, v)); td.appendChild(view); td.appendChild(accept); td.appendChild(reject); tr.appendChild(td); root.appendChild(tr); }); }
+
+/* admin actions */
+async function adminApproveWithdrawal(id, rec){ if(!confirm('Подтвердить выплату?')) return; try{ await db.ref('withdrawals/' + id).update({ status:'approved', processedAt: Date.now(), processedBy: adminWallet }); alert('Помечено approved'); }catch(e){ console.error(e); alert('Ошибка'); } }
+async function adminRejectWithdrawal(id, rec){ if(!confirm('Отклонить и вернуть?')) return; try{ await db.ref('withdrawals/' + id).update({ status:'rejected', processedAt: Date.now(), processedBy: adminWallet }); if(rec.uid){ const userBalancesRef = db.ref('users/' + rec.uid + '/balances'); await userBalancesRef.transaction(curr=>{ if(!curr) return curr; curr.ton = +( (curr.ton || 0) + (rec.totalDeduct || (rec.amount + (rec.fee||0))) ).toFixed(6); return curr; }); } alert('Отклонено и средства возвращены'); }catch(e){ console.error(e); alert('Ошибка'); } }
+async function adminBlockUser(uid){ if(!uid) return; if(!confirm('Заблокировать пользователя?')) return; try{ await db.ref('users/' + uid).update({ blocked:true, blockedAt:Date.now(), blockedBy:adminWallet }); alert('Заблокирован'); }catch(e){ console.error(e); alert('Ошибка'); } }
+async function adminEditBalances(uid, userObj){ try{ const newGamma = +prompt('Новая γ:', userObj?.balances?.gamma || 0); const newEnergy = +prompt('Новая энергия:', userObj?.balances?.energy || 0); const newTon = +prompt('Новый TON:', (userObj?.balances?.ton || 0)); if(isNaN(newGamma) || isNaN(newEnergy) || isNaN(newTon)) return alert('Некорректно'); await db.ref('users/' + uid + '/balances').set({ gamma:Number(newGamma), energy:Number(newEnergy), ton:Number(newTon) }); alert('Обновлено'); }catch(e){ console.error(e); alert('Ошибка'); } }
+async function adminApproveDeposit(id, rec){ if(!confirm('Зачислить депозит?')) return; try{ await db.ref('depositRequests/' + id).update({ status:'approved', processedAt: Date.now(), processedBy: adminWallet }); if(rec.uid){ await db.ref('users/' + rec.uid + '/balances').transaction(curr=>{ if(!curr) curr={energy:0,gamma:0,ton:0}; curr.ton = +((curr.ton || 0) + (rec.amount * 0.9)).toFixed(6); return curr; }); } alert('Зачислено (90%)'); }catch(e){ console.error(e); alert('Ошибка'); } }
+async function adminRejectDeposit(id, rec){ if(!confirm('Отклонить депозит?')) return; try{ await db.ref('depositRequests/' + id).update({ status:'rejected', processedAt: Date.now(), processedBy: adminWallet }); alert('Отклонено'); }catch(e){ console.error(e); alert('Ошибка'); } }
+
+/* ===== LEADERBOARD (now shows TON and Energy; orders by energy but displays TON) ===== */
+function subscribeLeaderboard(){
+  const ref = db.ref('users');
+  ref.orderByChild('balances/energy').limitToLast(50).on('value', snap=>{
+    const list=[];
+    snap.forEach(ch=>{
+      const v = ch.val() || {};
+      const energy = Number(v?.balances?.energy || 0);
+      const ton = Number(v?.balances?.ton || 0);
+      list.push({ uid: ch.key, energy, ton });
+    });
+    // sort by energy desc to keep previous behavior
+    list.sort((a,b)=>b.energy - a.energy);
+    const root = document.getElementById('leaderboard'); if(!root) return;
+    root.innerHTML = '';
+    list.forEach((it,i)=>{
+      const div = document.createElement('div');
+      div.className = 'shop-item';
+      // show rank, uid short, energy and TON explicitly
+      div.innerHTML = `<div style="min-width:40px">#${i+1}</div>
+        <div style="flex:1">
+          <div style="font-weight:700">uid:${it.uid.slice(0,6)}…</div>
+          <div class="small-muted">Энергия: ${n(it.energy)} · TON: ${it.ton.toFixed(2)}</div>
+        </div>
+        <div style="min-width:90px;text-align:right"><b>${n(it.energy)} э</b></div>`;
+      root.appendChild(div);
+    });
+  });
+}
+
+/* ===== UTIL ===== */
+function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')) + path; }
+
+/* ===== INIT ===== */
 (async function init(){
   try{ if(window.Telegram?.WebApp){ Telegram.WebApp.ready(); Telegram.WebApp.expand(); } }catch(e){}
 
-  // initialize firebase and services
   try{
     firebase.initializeApp(FIREBASE_CONFIG);
     auth = firebase.auth();
     db = firebase.database();
     storage = firebase.storage();
-  }catch(err){
-    console.error('Firebase init error', err); alert('Ошибка инициализации Firebase. Проверьте конфигурацию.');
-    return;
-  }
+  }catch(e){ console.error('Firebase init error', e); alert('Ошибка инициализации Firebase'); return; }
 
-  try{
-    await auth.signInAnonymously();
-  }catch(err){
-    console.error('Firebase auth error', err); alert('Не удалось авторизоваться анонимно в Firebase.');
-    return;
-  }
+  try{ await auth.signInAnonymously(); }catch(e){ console.error('auth error', e); alert('Ошибка авторизации'); return; }
 
   appUser.uid = auth.currentUser?.uid || null;
   userRef = db.ref('users/' + appUser.uid);
 
-  // load user data or create
   try{
     const snap = await userRef.get();
     if(snap.exists()){
       const data = snap.val();
-      appUser = {...appUser, ...data};
-      appUser.balances = appUser.balances || {energy:0,gamma:0,ton:0};
+      appUser = { ...appUser, ...data };
+      appUser.balances = appUser.balances || { energy:0, gamma:0, ton:0 };
       appUser.balances.energy = Number(appUser.balances.energy || 0);
       appUser.balances.gamma = Number(appUser.balances.gamma || 0);
       appUser.balances.ton = Number(appUser.balances.ton || 0);
@@ -430,16 +375,11 @@ function injectAd(){
     } else {
       await userRef.set(appUser);
     }
-  }catch(err){
-    console.error('Load/create user error', err);
-  }
+  }catch(e){ console.error('load user error', e); }
 
-  // init ton connect UI
-  try{
-    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json', buttonRootId: 'tonconnect' });
-  }catch(e){ console.warn('tonconnect init failed', e); }
+  try{ tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json', buttonRootId: 'tonconnect' }); }catch(e){ console.warn('tonconnect init', e); }
 
-  // attach UI handlers AFTER firebase/auth is ready
+  // attach UI handlers (after auth & DOM available)
   document.getElementById('btnRestartProduction')?.addEventListener('click', async ()=>{
     if(Object.keys(appUser.buildings||{}).length === 0) return alert('У вас нет зданий. Купите хотя бы одно.');
     appUser.productionActiveUntil = Date.now() + 3600000;
@@ -504,8 +444,7 @@ function injectAd(){
   });
 
   document.getElementById('depositFile')?.addEventListener('change', async (ev)=>{
-    const file = ev.target.files[0];
-    if(!file) return;
+    const file = ev.target.files[0]; if(!file) return;
     const amount = +prompt('Укажите сумму депозита в TON для этой загрузки (1..100):', '');
     if(!amount) return alert('Отменено');
     document.getElementById('depositStatus').textContent = 'Загружается скрин...';
@@ -526,7 +465,12 @@ function injectAd(){
     const amt = +prompt('Сумма депозита в TON (1..100)');
     if(!amt || amt < 1 || amt > 100) return alert('Введите 1..100');
     let connectedWallet = null;
-    try{ if(tonConnectUI && tonConnectUI.activeConnection && tonConnectUI.activeConnection.account) connectedWallet = tonConnectUI.activeConnection.account; }catch(e){}
+    try{
+      const conn = tonConnectUI?.activeConnection || (tonConnectUI?.connections && tonConnectUI.connections[0]);
+      if(conn){
+        connectedWallet = conn.account || conn.accountAddress || conn.account?.address || conn.account?.wallet || conn.account?.id || null;
+      }
+    }catch(e){}
     if(!connectedWallet) connectedWallet = prompt('Вставьте адрес кошелька, с которого переводите:', appUser.wallet || '');
     if(connectedWallet){ appUser.wallet = connectedWallet; if(userRef) await userRef.update({ wallet: appUser.wallet }); }
     const tonAmountNano = BigInt(Math.round(amt * 1e9)).toString();
@@ -553,172 +497,57 @@ function injectAd(){
       const data = await res.json();
       if(data.ok) document.getElementById('withdrawStatus').textContent = 'Заявка отправлена на обработку';
       else document.getElementById('withdrawStatus').textContent = 'Ошибка сервера, заявка в БД';
-    }catch(e){
-      console.warn('backend withdraw failed', e);
-      document.getElementById('withdrawStatus').textContent = 'Сервер недоступен — заявка в БД';
-    }
+    }catch(e){ console.warn('backend withdraw failed', e); document.getElementById('withdrawStatus').textContent = 'Сервер недоступен — заявка в БД'; }
     renderAll();
   });
 
-  /* Admin UI */
+  /* Admin connect: robust detection of connected wallet + manual paste fallback */
   document.getElementById('admin-close')?.addEventListener('click', ()=>{ document.getElementById('admin-panel').style.display='none'; document.getElementById('admin-panel').setAttribute('aria-hidden','true'); });
   document.getElementById('admin-connect')?.addEventListener('click', async ()=>{
-    let connected=null;
-    try{ await tonConnectUI.connectWallet(); if(tonConnectUI && tonConnectUI.activeConnection && tonConnectUI.activeConnection.account) connected = tonConnectUI.activeConnection.account; }catch(e){}
-    if(!connected) connected = prompt('Вставьте адрес админ-кошелька:','');
-    if(!connected) return alert('Отменено');
-    adminWallet = connected;
-    if(adminWallet === OWNER_TON_WALLET){
-      isAdmin=true; document.getElementById('admin-panel').style.display='block'; document.getElementById('admin-panel').setAttribute('aria-hidden','false'); document.getElementById('admin-status').textContent='Админ: подключён'; document.getElementById('admin-status').classList.add('ok');
+    let connected = null;
+    try{ await tonConnectUI.connectWallet(); }catch(e){ /* ignore */ }
+    try{
+      const conn = tonConnectUI?.activeConnection || (tonConnectUI?.connections && tonConnectUI.connections[0]);
+      if(conn){
+        // try several common property names used by TON UI libs
+        connected = conn.account || conn.accountAddress || conn.account?.address || conn.account?.wallet || conn.account?.id || null;
+      }
+    }catch(e){ console.warn('reading tonConnect connection failed', e); }
+    if(!connected){
+      const pasted = prompt('Подключение не распознано автоматически. Вставьте адрес админ-кошелька вручную:', '');
+      if(pasted) connected = pasted;
+    }
+    if(!connected) return alert('Подключение админ-кошелька отменено.');
+
+    const normConnected = normalizeAddr(connected);
+    const normOwner = normalizeAddr(OWNER_TON_WALLET);
+    console.info('admin connect attempt: ', { connected: normConnected, owner: normOwner });
+
+    if(normConnected === normOwner){
+      adminWallet = connected;
+      isAdmin = true;
+      document.getElementById('admin-panel').style.display='block';
+      document.getElementById('admin-panel').setAttribute('aria-hidden','false');
+      document.getElementById('admin-status').textContent='Админ: подключён';
+      document.getElementById('admin-status').classList.add('ok');
+      // start listeners and render admin tables
       startAdminListeners();
-    } else alert('Адрес не совпадает с владельцем.');
+    } else {
+      alert('Адрес не совпадает с владельцем. Доступ запрещён.');
+    }
   });
+
   document.getElementById('admin-filter')?.addEventListener('input', ()=>{ renderAdminWithdrawals(); renderAdminUsers(); renderAdminDeposits(); });
 
   // start loops and subscriptions
   tickEnergy(); renderAll(); subscribeLeaderboard();
 
-  // inject ad last so it doesn't block init
+  // inject ad last (after nav created and UI attached) — this keeps nav clickable
   injectAd();
 })();
 
-/* ---------------- SUBSCRIPTIONS & ADMIN LISTENERS ---------------- */
-function subscribeLeaderboard(){
-  const ref = db.ref('users');
-  ref.orderByChild('balances/energy').limitToLast(50).on('value', snap=>{
-    const root = document.getElementById('leaderboard'); if(!root) return; root.innerHTML='';
-    const list = [];
-    snap.forEach(ch=>{ const v = ch.val(); list.push({ uid: ch.key, energy: v?.balances?.energy || 0 }); });
-    list.sort((a,b)=>b.energy - a.energy);
-    list.forEach((it,i)=>{ const div=document.createElement('div'); div.className='shop-item'; div.innerHTML = `<div>#${i+1}</div><div class="muted">uid:${it.uid.slice(0,6)}…</div><div><b>${n(it.energy)}</b> э</div>`; root.appendChild(div); });
-  });
-}
-
-/* Admin listeners */
-let __admin_withdrawals = [], __admin_users = [], __admin_deposits = [];
-let withdrawalsRef=null, usersRef=null, depositsRef=null;
-
-function startAdminListeners(){
-  if(withdrawalsRef) withdrawalsRef.off();
-  if(usersRef) usersRef.off();
-  if(depositsRef) depositsRef.off();
-
-  withdrawalsRef = db.ref('withdrawals');
-  withdrawalsRef.on('value', snap=>{
-    const arr=[]; snap.forEach(ch=>{ arr.push({ id: ch.key, val: ch.val() }); }); __admin_withdrawals = arr; renderAdminWithdrawals();
-  });
-
-  usersRef = db.ref('users');
-  usersRef.on('value', snap=>{
-    const arr=[]; snap.forEach(ch=>{ arr.push({ uid: ch.key, val: ch.val() }); }); __admin_users = arr; renderAdminUsers();
-  });
-
-  depositsRef = db.ref('depositRequests');
-  depositsRef.on('value', snap=>{
-    const arr=[]; snap.forEach(ch=>{ arr.push({ id: ch.key, val: ch.val() }); }); __admin_deposits = arr; renderAdminDeposits();
-  });
-}
-
-function renderAdminWithdrawals(){
-  const root=document.getElementById('admin-withdrawals'); if(!root) return; root.innerHTML='';
-  const list = (__admin_withdrawals || []).slice().reverse();
-  list.forEach(item=>{
-    const v = item.val; if(!matchesFilter(v.uid || v.address || '')) return;
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${item.id}</td><td class="small-muted">${new Date(v.createdAt).toLocaleString()}</td><td>${v.uid||''}</td><td>${v.wallet||v.address||''}</td><td>${v.amount} TON</td><td>${v.status}</td>`;
-    const td=document.createElement('td');
-    const a=document.createElement('button'); a.className='btn'; a.textContent='Одобрить'; a.addEventListener('click', ()=>adminApproveWithdrawal(item.id, v));
-    const r=document.createElement('button'); r.className='btn secondary'; r.textContent='Отклонить'; r.addEventListener('click', ()=>adminRejectWithdrawal(item.id, v));
-    const b=document.createElement('button'); b.className='btn danger'; b.textContent='Заблокировать'; b.addEventListener('click', ()=>adminBlockUser(v.uid));
-    td.appendChild(a); td.appendChild(r); td.appendChild(b);
-    tr.appendChild(td);
-    root.appendChild(tr);
-  });
-}
-
-function renderAdminUsers(){
-  const root=document.getElementById('admin-users'); if(!root) return; root.innerHTML='';
-  const list = (__admin_users || []).slice().reverse();
-  list.forEach(u=>{
-    if(!matchesFilter(u.uid) && !matchesFilter(u.val?.wallet||'')) return;
-    const v = u.val || {};
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${u.uid}</td><td>${v.wallet||''}</td><td>γ:${n(v.balances?.gamma||0)} / э:${n(v.balances?.energy||0)} / TON:${(v.balances?.ton||0).toFixed(2)}</td>`;
-    const td=document.createElement('td');
-    const edit=document.createElement('button'); edit.className='btn'; edit.textContent='Изменить баланс'; edit.addEventListener('click', ()=>adminEditBalances(u.uid, v));
-    const toggle=document.createElement('button'); toggle.className='btn secondary'; toggle.textContent = v.blocked ? 'Разблокировать' : 'Заблокировать'; toggle.addEventListener('click', ()=>adminToggleBlock(u.uid, v));
-    td.appendChild(edit); td.appendChild(toggle);
-    tr.appendChild(td);
-    root.appendChild(tr);
-  });
-}
-
-function renderAdminDeposits(){
-  const root=document.getElementById('admin-deposits'); if(!root) return; root.innerHTML='';
-  const list = (__admin_deposits || []).slice().reverse();
-  list.forEach(item=>{
-    const v = item.val; if(!matchesFilter(v.uid||v.wallet||'')) return;
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${item.id}</td><td class="small-muted">${new Date(v.createdAt).toLocaleString()}</td><td>${v.uid||''}</td><td>${v.wallet||''}</td><td>${v.amount} TON</td><td>${v.status}</td>`;
-    const td=document.createElement('td');
-    const view=document.createElement('button'); view.className='btn'; view.textContent='Просмотр'; view.addEventListener('click', ()=>{ if(v.proofUrl) window.open(v.proofUrl,'_blank'); else alert('Скрин отсутствует'); });
-    const accept=document.createElement('button'); accept.className='btn'; accept.textContent='Зачислить'; accept.addEventListener('click', ()=>adminApproveDeposit(item.id, v));
-    const reject=document.createElement('button'); reject.className='btn secondary'; reject.textContent='Отклонить'; reject.addEventListener('click', ()=>adminRejectDeposit(item.id, v));
-    td.appendChild(view); td.appendChild(accept); td.appendChild(reject);
-    tr.appendChild(td);
-    root.appendChild(tr);
-  });
-}
-
-/* Admin actions implemented previously (approve/reject/block/edit) */
-async function adminApproveWithdrawal(id, rec){
-  if(!confirm('Подтвердить выплату?')) return;
-  try{ await db.ref('withdrawals/' + id).update({ status:'approved', processedAt: Date.now(), processedBy: adminWallet }); alert('Помечено approved'); }catch(e){ console.error(e); alert('Ошибка'); }
-}
-async function adminRejectWithdrawal(id, rec){
-  if(!confirm('Отклонить и вернуть?')) return;
-  try{
-    await db.ref('withdrawals/' + id).update({ status:'rejected', processedAt: Date.now(), processedBy: adminWallet });
-    if(rec.uid){
-      const userBalancesRef = db.ref('users/' + rec.uid + '/balances');
-      await userBalancesRef.transaction(curr=>{
-        if(!curr) return curr;
-        curr.ton = +( (curr.ton || 0) + (rec.totalDeduct || (rec.amount + (rec.fee||0))) ).toFixed(6);
-        return curr;
-      });
-    }
-    alert('Отклонено и средства возвращены');
-  }catch(e){ console.error(e); alert('Ошибка'); }
-}
-async function adminBlockUser(uid){ if(!uid) return; if(!confirm('Заблокировать пользователя?')) return; try{ await db.ref('users/' + uid).update({ blocked:true, blockedAt:Date.now(), blockedBy:adminWallet }); alert('Заблокирован'); }catch(e){ console.error(e); alert('Ошибка'); } }
-async function adminEditBalances(uid, userObj){
-  try{
-    const newGamma = +prompt('Новая γ:', userObj?.balances?.gamma || 0);
-    const newEnergy = +prompt('Новая энергия:', userObj?.balances?.energy || 0);
-    const newTon = +prompt('Новый TON:', (userObj?.balances?.ton || 0));
-    if(isNaN(newGamma) || isNaN(newEnergy) || isNaN(newTon)) return alert('Некорректно');
-    await db.ref('users/' + uid + '/balances').set({ gamma:Number(newGamma), energy:Number(newEnergy), ton:Number(newTon) });
-    alert('Обновлено');
-  }catch(e){ console.error(e); alert('Ошибка'); }
-}
-async function adminApproveDeposit(id, rec){
-  if(!confirm('Зачислить депозит?')) return;
-  try{
-    await db.ref('depositRequests/' + id).update({ status:'approved', processedAt: Date.now(), processedBy: adminWallet });
-    if(rec.uid){
-      await db.ref('users/' + rec.uid + '/balances').transaction(curr=>{
-        if(!curr) curr={energy:0,gamma:0,ton:0};
-        curr.ton = +((curr.ton || 0) + (rec.amount * 0.9)).toFixed(6);
-        return curr;
-      });
-    }
-    alert('Зачислено (90%)');
-  }catch(e){ console.error(e); alert('Ошибка'); }
-}
-async function adminRejectDeposit(id, rec){ if(!confirm('Отклонить депозит?')) return; try{ await db.ref('depositRequests/' + id).update({ status:'rejected', processedAt: Date.now(), processedBy: adminWallet }); alert('Отклонено'); }catch(e){ console.error(e); alert('Ошибка'); } }
-
-/* ---------------- UTIL ---------------- */
-function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')) + path; }
+/* ===== expose renderAll for convenience ===== */
+function renderAll(){ updateBalancesUI(); renderBuildingsOwned(); renderShop(); }
 </script>
 </body>
 </html>
