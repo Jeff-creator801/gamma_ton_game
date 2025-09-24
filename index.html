@@ -3,12 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-  <title>GammaTon — Мини-игра</title>
+  <title>GammaTon — Мини-игра (with Admin)</title>
+
+  <!-- libs -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
   <script src="https://unpkg.com/@tonconnect/ui@2.0.8/dist/tonconnect-ui.min.js"></script>
+
   <style>
     :root{--bg:#0b0f1a;--card:#11182a;--text:#e8eeff;--muted:#9fb7ff66;--accent:#5c8dff;--radius:18px}
     *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:radial-gradient(1200px 600px at 50% -100px,#1a2453 0%,#0b0f1a 55%,#08102a 100%);color:var(--text);font-family:system-ui,Segoe UI,Roboto,Inter,Arial;}
@@ -32,8 +36,19 @@
     .nav{position:fixed;inset:auto 0 0;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px;border-top:1px solid #ffffff10;background:linear-gradient(180deg,#0b0f1aee,#0b0f1aff)}
     .nav .item{display:flex;flex-direction:column;align-items:center;gap:4px;color:#cfe0ffcc;font-size:11px}
     input{background:#0b1226;border:1px solid #ffffff18;padding:10px;border-radius:10px;color:#fff}
-    /* reserve bottom space when ad is present (default none) */
-    body.has-sticky-ad .views { padding-bottom: 88px; } /* visual safety */
+    /* Admin panel */
+    #admin-panel{position:fixed;right:12px;top:80px;width:520px;max-width:95vw;max-height:80vh;overflow:auto;background:linear-gradient(180deg,#0f1630,#071025);border-radius:12px;padding:12px;border:1px solid #ffffff18;z-index:100010;display:none}
+    #admin-panel h3{margin:6px 0 10px}
+    .table{width:100%;border-collapse:collapse}
+    .table tr{border-bottom:1px solid #ffffff10}
+    .table td{padding:6px;font-size:13px}
+    .small-muted{color:#9fb7ff99;font-size:12px}
+    .admin-controls{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+    .file-input{display:none}
+    .admin-header{display:flex;justify-content:space-between;align-items:center;gap:8px}
+    .pill{background:#162039;padding:6px 8px;border-radius:8px;font-size:12px}
+    .danger{background:linear-gradient(180deg,#6b2838,#4a1320)}
+    .ok{background:linear-gradient(180deg,#2b6b3a,#1b4b28)}
   </style>
 </head>
 <body>
@@ -61,6 +76,7 @@
         </div>
         <div style="margin-top:8px" class="muted">Добыча идёт только 1 час после запуска, затем останавливается — нажмите «Перезапустить добычу». Премиум даёт +20% к добыче и +2000 γ при покупке.</div>
       </div>
+
       <div class="card">
         <h3>Ваши здания</h3>
         <div id="buildingsList"></div>
@@ -103,10 +119,16 @@
       </div>
 
       <div class="card">
-        <h3>Пополнение TON (TON Connect)</h3>
-        <div id="tonconnect"></div>
-        <div style="margin-top:8px" class="muted">Минимум 1 TON, максимум 100 TON. Комиссия 10% удерживается при зачислении.</div>
-        <button class="btn" id="btnDepositTon">Пополнить TON</button>
+        <h3>Пополнение TON (TON Connect + Proof)</h3>
+        <div id="tonconnect" style="margin-bottom:8px"></div>
+        <div style="margin-top:8px" class="muted">Минимум 1 TON, максимум 100 TON. Комиссия 10% удерживается при зачислении. После отправки транзакции загрузите скриншот оплаты (опционально) для ускорения проверки.</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="btnDepositTon">Пополнить TON</button>
+          <label class="btn secondary" style="display:inline-flex;align-items:center;cursor:pointer">
+            Загрузить скрин
+            <input id="depositFile" class="file-input" type="file" accept="image/*" />
+          </label>
+        </div>
         <div id="depositStatus" class="muted" style="margin-top:8px"></div>
       </div>
 
@@ -119,7 +141,6 @@
         <div id="withdrawStatus" class="muted" style="margin-top:8px"></div>
       </div>
     </section>
-
   </div>
 
   <nav class="nav" id="main-nav">
@@ -129,6 +150,38 @@
     <button class="item" data-view="leaderboard"><div class="ico">🏆</div>Топ</button>
     <button class="item" data-view="exchange"><div class="ico">🔁</div>Обмен</button>
   </nav>
+</div>
+
+<!-- Admin panel (hidden until admin connects) -->
+<div id="admin-panel" aria-hidden="true">
+  <div class="admin-header">
+    <h3>Admin: Панель управления</h3>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div id="admin-status" class="pill small-muted">Не в системе</div>
+      <button id="admin-connect" class="btn">Подключиться как админ</button>
+      <button id="admin-close" class="btn secondary">Скрыть</button>
+    </div>
+  </div>
+
+  <div style="margin-top:10px">
+    <div class="small-muted">Фильтр/Поиск UID / кошелька:</div>
+    <input id="admin-filter" placeholder="uid или адрес кошелька" style="width:100%;margin:6px 0 10px" />
+  </div>
+
+  <div>
+    <h4 style="margin:6px 0">Запросы на вывод</h4>
+    <table class="table" id="admin-withdrawals"></table>
+  </div>
+
+  <div>
+    <h4 style="margin:6px 0">Пользователи (балансы)</h4>
+    <table class="table" id="admin-users"></table>
+  </div>
+
+  <div style="margin-top:8px">
+    <h4 style="margin:6px 0">Депозитные заявки / скрины</h4>
+    <table class="table" id="admin-deposits"></table>
+  </div>
 </div>
 
 <script>
@@ -146,11 +199,10 @@ const FIREBASE_CONFIG = {
 const OWNER_TON_WALLET = 'UQAmTM_EE8D6seecLKf-h8aXVQasliniDDQ52EvBj7PqExNr';
 
 const RATES = {
-  GAMMA_TO_TON: 100000,   // 100000 γ -> 1 TON
-  ENERGY_TO_GAMMA_PER_10K: 10 // 10000 energy -> 10 γ
+  GAMMA_TO_TON: 100000,
+  ENERGY_TO_GAMMA_PER_10K: 10
 };
 
-/* ========= BUILDINGS ========= */
 const BUILDINGS = {
   solar: { id:'solar', name:'Солнечная батарея', priceGamma:7, earnPerHour:700, emoji:'☀️' },
   wind:  { id:'wind',  name:'Воздушная батарея',  priceGamma:21, earnPerHour:2100, emoji:'🌬️' },
@@ -165,15 +217,17 @@ let appUser = {
   buildings: {},
   lastTick: Date.now(),
   productionActiveUntil: 0,
-  wheels: { energyAt:0 }
+  wheels: { energyAt:0 },
+  wallet: null, // will store TON wallet when user connects
 };
 
-let db, auth, userRef;
+let db, auth, userRef, storage;
 let tonConnectUI;
+let isAdmin = false;
+let adminWallet = null;
 
-/* ======= HELPERS & RENDER ======= */
+/* ========= HELPERS ========= */
 function n(v){ return (v||0).toLocaleString('ru-RU'); }
-
 function updateBalancesUI(){
   const enEl = document.getElementById('energy');
   const gaEl = document.getElementById('gamma');
@@ -183,7 +237,7 @@ function updateBalancesUI(){
   if(toEl) toEl.textContent = (appUser.balances.ton||0).toFixed(2);
 }
 
-/* Render owned buildings */
+/* ========= RENDER (shop & owned) - robust implementations ========= */
 function renderBuildingsOwned(){
   const root = document.getElementById('buildingsList');
   if(!root) return;
@@ -191,42 +245,27 @@ function renderBuildingsOwned(){
   for(const id of Object.keys(BUILDINGS)){
     if(!appUser.buildings?.[id]) continue;
     const conf = BUILDINGS[id];
-
     const el = document.createElement('div');
     el.className = 'shop-item';
-
-    const left = document.createElement('div');
-    left.style.display = 'flex';
-    left.style.gap = '10px';
-    left.style.alignItems = 'center';
-    left.innerHTML = `
-      <div class="img">${conf.emoji}</div>
-      <div>
-        <div style="font-weight:700">${conf.name}</div>
-        <div class="muted">Доход: ${n(conf.earnPerHour)} энергия/ч</div>
+    el.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="img">${conf.emoji}</div>
+        <div>
+          <div style="font-weight:700">${conf.name}</div>
+          <div class="muted">Доход: ${n(conf.earnPerHour)} энергия/ч</div>
+        </div>
       </div>
+      <div><button class="btn secondary" data-sell="${id}">Продать</button></div>
     `;
-
-    const right = document.createElement('div');
-    const sellBtn = document.createElement('button');
-    sellBtn.className = 'btn secondary';
-    sellBtn.dataset.sell = id;
-    sellBtn.textContent = 'Продать';
-    sellBtn.addEventListener('click', onSell);
-
-    right.appendChild(sellBtn);
-    el.appendChild(left);
-    el.appendChild(right);
     root.appendChild(el);
   }
+  root.querySelectorAll('[data-sell]').forEach(b=>b.addEventListener('click', onSell));
 }
 
-/* Render shop */
 function renderShop(){
   const root = document.getElementById('shopList');
   if(!root) return;
   root.innerHTML = '';
-
   for(const id of Object.keys(BUILDINGS)){
     const conf = BUILDINGS[id];
     const have = !!appUser.buildings?.[id];
@@ -236,38 +275,28 @@ function renderShop(){
 
     const item = document.createElement('div');
     item.className = 'shop-item';
-
-    const left = document.createElement('div');
-    left.style.display = 'flex';
-    left.style.gap = '10px';
-    left.style.alignItems = 'center';
-    left.innerHTML = `
-      <div class="img">${conf.emoji}</div>
-      <div>
-        <div style="font-weight:700">${conf.name}</div>
-        <div class="muted">${have ? 'Куплено' : (conf.priceGamma + ' γ')}</div>
+    item.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="img">${conf.emoji}</div>
+        <div>
+          <div style="font-weight:700">${conf.name}</div>
+          <div class="muted">${have ? 'Куплено' : (conf.priceGamma + ' γ')}</div>
+        </div>
       </div>
+      <div></div>
     `;
-
-    const rightWrap = document.createElement('div');
     const btn = document.createElement('button');
-    btn.className = 'btn';
-    if(!canBuy) btn.classList.add('secondary');
+    btn.className = 'btn' + (canBuy ? '' : ' secondary');
     btn.disabled = !canBuy;
     btn.dataset.buy = id;
     btn.textContent = have ? '—' : 'Купить';
     btn.addEventListener('click', onBuy);
-
-    rightWrap.appendChild(btn);
-    item.appendChild(left);
-    item.appendChild(rightWrap);
+    item.querySelector('div:last-child').appendChild(btn);
     root.appendChild(item);
   }
 }
 
-/* ========= BUY / SELL HANDLERS ========= */
-
-/* Sell handler (keeps logic from original) */
+/* ========= BUY / SELL ========= */
 async function onSell(e){
   try{
     const id = e.currentTarget.getAttribute('data-sell');
@@ -279,36 +308,29 @@ async function onSell(e){
     renderAll();
   }catch(err){
     console.error('onSell error', err);
-    alert('Ошибка при продаже. Посмотрите консоль.');
+    alert('Ошибка при продаже. Подробности в консоли.');
   }
 }
 
-/* Buy handler - robust checks, disables button while processing */
 async function onBuy(e){
   const btn = e.currentTarget;
   try{
     const id = btn?.dataset?.buy;
-    if(!id) return console.warn('onBuy: missing id');
-
+    if(!id) return;
     const conf = BUILDINGS[id];
     if(!conf) return alert('Ошибка: здание не найдено.');
-
     if(appUser.buildings?.[id]) return alert('Вы уже купили это здание.');
-
     const gammaBal = Number((appUser.balances && appUser.balances.gamma) || 0);
     const price = Number(conf.priceGamma || 0);
     if(gammaBal < price) return alert('Недостаточно γ');
 
-    // block button
     btn.disabled = true;
     const prevText = btn.textContent;
     btn.textContent = 'Покупка...';
 
-    // local update
     appUser.balances.gamma = gammaBal - price;
     appUser.buildings = appUser.buildings || {};
     appUser.buildings[id] = true;
-    // start production for 1 hour on first purchase (as before)
     appUser.productionActiveUntil = Date.now() + 3600000;
 
     if(userRef){
@@ -324,21 +346,16 @@ async function onBuy(e){
     renderAll();
   }catch(err){
     console.error('onBuy error', err);
-    alert('Ошибка при покупке. Посмотрите консоль.');
-    if(btn){
-      btn.disabled = false;
-      btn.textContent = 'Купить';
-    }
+    alert('Ошибка при покупке. Подробности в консоли.');
+    if(btn){ btn.disabled = false; btn.textContent = 'Купить'; }
   }
 }
 
-/* ========= PRODUCTION TICK ========= */
+/* ========= PRODUCTION ========= */
 function totalHourly(){
   let sum = 0;
   for(const id of Object.keys(BUILDINGS)){
-    if(appUser.buildings[id]){
-      sum += BUILDINGS[id].earnPerHour;
-    }
+    if(appUser.buildings[id]) sum += BUILDINGS[id].earnPerHour;
   }
   if(appUser.premium) sum = Math.floor(sum * 1.2);
   return sum;
@@ -348,32 +365,22 @@ function tickEnergy(){
   const now = Date.now();
   const last = appUser.lastTick || now;
   let produced = 0;
-
   if(appUser.productionActiveUntil > last){
     const activeFrom = last;
     const activeTo = Math.min(now, appUser.productionActiveUntil);
     const dtHours = Math.max(0, (activeTo - activeFrom) / 3600000);
     const perH = totalHourly();
     produced = Math.floor(perH * dtHours);
-    if(produced > 0){
-      appUser.balances.energy = (appUser.balances.energy || 0) + produced;
-    }
+    if(produced > 0) appUser.balances.energy = (appUser.balances.energy || 0) + produced;
   }
-
   appUser.lastTick = now;
   try{ if(userRef) userRef.update({ balances: appUser.balances, lastTick: appUser.lastTick, productionActiveUntil: appUser.productionActiveUntil }); }catch(e){}
   updateBalancesUI();
-
   setTimeout(()=> tickEnergy(), 20000);
 }
 
-/* ========= OTHER UI & ACTIONS (unchanged but robustified) ========= */
-
-function renderAll(){
-  updateBalancesUI();
-  renderBuildingsOwned();
-  renderShop();
-}
+/* ========= OTHER ACTIONS ========= */
+function renderAll(){ updateBalancesUI(); renderBuildingsOwned(); renderShop(); }
 
 /* restart production */
 document.getElementById('btnRestartProduction').addEventListener('click', async ()=>{
@@ -418,41 +425,62 @@ document.getElementById('btnPremium').onclick = async ()=>{
   renderAll(); alert('Премиум активирован: +20% к доходу и +2000 γ');
 };
 
-/* exchange & ton connect */
-function addTon(v){ appUser.balances.ton = +(Math.max(0,(appUser.balances.ton||0) + v)).toFixed(2); }
-function addGamma(v){ appUser.balances.gamma = Math.max(0,(appUser.balances.gamma||0) + v); }
-function addEnergy(v){ appUser.balances.energy = Math.max(0,(appUser.balances.energy||0) + v); }
+/* ========= DEPOSIT (TON Connect + screenshot upload) ========= */
+document.getElementById('depositFile').addEventListener('change', async (ev)=>{
+  // allow users to upload proof and create deposit request without TON Connect (optional)
+  const file = ev.target.files[0];
+  if(!file) return;
+  const amount = +prompt('Укажите сумму депозита в TON для этой загрузки (1..100). Если хотите просто загрузить скрин без суммы — нажмите Отмена.', '');
+  if(!amount) return alert('Сумма не указана, отмена.');
+  if(amount < 1 || amount > 100) return alert('Введите сумму 1..100 TON');
+  const key = 'dep-' + (appUser.uid || 'anon') + '-' + Date.now();
+  document.getElementById('depositStatus').textContent = 'Загружаем скрин...';
+  try{
+    const storageRef = storage.ref().child('deposit_proofs/' + (appUser.uid || 'anon') + '/' + key + '-' + file.name);
+    const snap = await storageRef.put(file);
+    const url = await snap.ref.getDownloadURL();
+    // push deposit request
+    const req = {
+      uid: appUser.uid || null,
+      amount,
+      proofUrl: url,
+      status: 'pending',
+      createdAt: Date.now(),
+      wallet: appUser.wallet || null
+    };
+    await db.ref('depositRequests').push(req);
+    document.getElementById('depositStatus').textContent = 'Скрин загружен и заявка отправлена на проверку.';
+  }catch(err){
+    console.error('upload proof error', err);
+    alert('Ошибка загрузки скрина. Посмотрите консоль.');
+    document.getElementById('depositStatus').textContent = 'Ошибка загрузки.';
+  } finally {
+    ev.target.value = '';
+  }
+});
 
-document.getElementById('btnGammaToTon').onclick = async ()=>{
-  const amtGamma = +prompt('Сколько γ обменять на TON? (100000 γ = 1 TON)');
-  if(!amtGamma || amtGamma<=0) return;
-  if((appUser.balances.gamma||0) < amtGamma) return alert('Недостаточно γ');
-  const lots = Math.floor(amtGamma / RATES.GAMMA_TO_TON);
-  if(lots <= 0) return alert('Минимум 100000 γ');
-  addGamma(-lots * RATES.GAMMA_TO_TON);
-  addTon(lots * 1);
-  if(userRef) await userRef.update({ balances: appUser.balances });
-  renderAll();
-};
-
-document.getElementById('btnEnergyToTon').onclick = async ()=>{
-  const amt = +prompt('Сколько энергии обменять? (10000 энергии = 10 γ)');
-  if(!amt || amt<=0) return;
-  if((appUser.balances.energy||0) < amt) return alert('Недостаточно энергии');
-  const lots = Math.floor(amt / 10000);
-  if(lots <= 0) return alert('Минимум 10000 энергии');
-  addEnergy(-lots * 10000);
-  addGamma(lots * RATES.ENERGY_TO_GAMMA_PER_10K);
-  if(userRef) await userRef.update({ balances: appUser.balances });
-  renderAll();
-};
-
-/* deposit via TON Connect (kept behavior) */
 document.getElementById('btnDepositTon').onclick = async ()=>{
-  try{ await tonConnectUI.connectWallet(); }catch(e){}
+  try{ await tonConnectUI.connectWallet(); }catch(e){ /* ignore if cancelled */ }
   const amt = +prompt('Сумма депозита в TON (1..100)');
   if(!amt || amt < 1 || amt > 100) return alert('Введите от 1 до 100 TON');
-  const memo = 'dep-'+appUser.uid+'-'+Date.now();
+  // attempt to get wallet from tonConnectUI if available
+  let connectedWallet = null;
+  try{
+    // TonConnectUI specifics vary; try to read from instance
+    if(tonConnectUI && tonConnectUI.activeConnection && tonConnectUI.activeConnection.account) {
+      connectedWallet = tonConnectUI.activeConnection.account;
+    }
+  }catch(e){}
+  // fallback: ask user to paste wallet used
+  if(!connectedWallet){
+    connectedWallet = prompt('Вставьте адрес TON-кошелька, с которого выполняется перевод (чтобы привязать депозит):', appUser.wallet || '');
+  }
+  if(connectedWallet){
+    appUser.wallet = connectedWallet;
+    if(userRef) await userRef.update({ wallet: appUser.wallet });
+  }
+
+  // try to send transaction but don't rely on it for verification; backend will check on its own
   const tonAmountNano = BigInt(Math.round(amt * 1e9)).toString();
   try{
     await tonConnectUI.sendTransaction({
@@ -460,20 +488,27 @@ document.getElementById('btnDepositTon').onclick = async ()=>{
       messages: [{ address: OWNER_TON_WALLET, amount: tonAmountNano, stateInit: undefined, payload: undefined }],
     });
   }catch(e){ console.warn('tonConnect sendTransaction failed or cancelled', e); }
-  document.getElementById('depositStatus').textContent = 'Проверяем транзакцию в сети TON…';
-  const res = await fetch(getApi('/api/checkDeposit'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, amount: amt })});
-  const data = await res.json();
-  if(data.ok){
-    addTon( +( (amt * 0.9).toFixed(2) ) );
-    if(!appUser.firstDepositAt) appUser.firstDepositAt = Date.now();
-    if(userRef) await userRef.update({ balances: appUser.balances, firstDepositAt: appUser.firstDepositAt });
-    renderAll(); document.getElementById('depositStatus').textContent = 'Депозит найден и зачислен (с учётом комиссии).';
-  } else {
-    document.getElementById('depositStatus').textContent = 'Оплата не найдена автоматически. Проверка продолжится на сервере.';
-  }
+
+  document.getElementById('depositStatus').textContent = 'Ожидается проверка платежа. Вы также можете загрузить скрин для ускорения проверки.';
+
+  // create deposit request record (admin can verify using on-chain or screenshot)
+  const depositReq = {
+    uid: appUser.uid || null,
+    amount: amt,
+    proofUrl: null,
+    status: 'pending',
+    createdAt: Date.now(),
+    wallet: appUser.wallet || connectedWallet || null
+  };
+  await db.ref('depositRequests').push(depositReq);
+
+  // notify backend as before (optional)
+  try{
+    await fetch(getApi('/api/checkDeposit'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, amount: amt })});
+  }catch(e){ console.warn('backend checkDeposit request failed', e); }
 };
 
-/* withdraw */
+/* ========= WITHDRAW (creates DB record for admin) ========= */
 document.getElementById('btnWithdraw').onclick = async ()=>{
   const address = document.getElementById('withdrawAddress').value.trim();
   const amount = +document.getElementById('withdrawAmount').value;
@@ -482,28 +517,60 @@ document.getElementById('btnWithdraw').onclick = async ()=>{
   const fee = +(amount * 0.10).toFixed(6);
   const totalDeduct = +(amount + fee).toFixed(6);
   if((appUser.balances.ton || 0) < totalDeduct) return alert('Недостаточно TON для выплаты с учётом комиссии');
+
+  // deduct locally and record request
   appUser.balances.ton = +( (appUser.balances.ton || 0) - totalDeduct ).toFixed(6);
   if(userRef) await userRef.update({ balances: appUser.balances });
-  const res = await fetch(getApi('/api/requestWithdrawal'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, address, amount })});
-  const data = await res.json();
-  if(data.ok){ renderAll(); document.getElementById('withdrawStatus').textContent = 'Заявка на вывод принята. Комиссия 10% удержана.'; }
-  else { document.getElementById('withdrawStatus').textContent = 'Ошибка создания заявки.'; }
+
+  const withdrawReq = {
+    uid: appUser.uid || null,
+    address,
+    amount,
+    fee,
+    totalDeduct,
+    status: 'pending',
+    createdAt: Date.now(),
+    wallet: appUser.wallet || null
+  };
+  const pushRef = await db.ref('withdrawals').push(withdrawReq);
+
+  // send to backend as previously
+  try{
+    const res = await fetch(getApi('/api/requestWithdrawal'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ uid: appUser.uid, address, amount })});
+    const data = await res.json();
+    if(data.ok){
+      document.getElementById('withdrawStatus').textContent = 'Заявка на вывод отправлена на обработку (и сохранена в админ-панели).';
+    } else {
+      document.getElementById('withdrawStatus').textContent = 'Ошибка на сервере при создании заявки. Проверьте консоль.';
+    }
+  }catch(e){
+    console.warn('backend withdraw request failed', e);
+    document.getElementById('withdrawStatus').textContent = 'Сервер недоступен — заявка создана в БД и ожидает обработки админом.';
+  }
+  renderAll();
 };
 
-/* leaderboard subscribe */
+/* ========= LEADERBOARD ========= */
 function subscribeLeaderboard(){
   const ref = db.ref('users');
   ref.orderByChild('balances/energy').limitToLast(50).on('value', snap=>{
     const list=[];
-    snap.forEach(ch=>{ const v=ch.val(); list.push({uid:ch.key, energy:v?.balances?.energy||0}); });
+    snap.forEach(ch=>{
+      const v=ch.val();
+      list.push({uid:ch.key, energy:v?.balances?.energy||0});
+    });
     list.sort((a,b)=>b.energy-a.energy);
     const root = document.getElementById('leaderboard'); if(!root) return;
     root.innerHTML='';
-    list.forEach((it,i)=>{ const div=document.createElement('div'); div.className='shop-item'; div.innerHTML=`<div>#${i+1}</div><div class="muted">uid:${it.uid.slice(0,6)}…</div><div><b>${n(it.energy)}</b> э</div>`; root.appendChild(div); });
+    list.forEach((it,i)=>{
+      const div=document.createElement('div'); div.className='shop-item';
+      div.innerHTML=`<div>#${i+1}</div><div class="muted">uid:${it.uid.slice(0,6)}…</div><div><b>${n(it.energy)}</b> э</div>`;
+      root.appendChild(div);
+    });
   });
 }
 
-/* nav behavior */
+/* ========= NAV ========= */
 const navItems = document.querySelectorAll('.nav .item');
 navItems.forEach(btn=>btn.addEventListener('click',()=>{
   navItems.forEach(b=>b.classList.remove('active'));
@@ -514,7 +581,265 @@ navItems.forEach(btn=>btn.addEventListener('click',()=>{
   if(target) target.classList.add('active');
 }));
 
-/* helpers */
+/* ========= ADMIN: UI and logic ========= */
+const adminPanel = document.getElementById('admin-panel');
+const adminStatus = document.getElementById('admin-status');
+const adminConnectBtn = document.getElementById('admin-connect');
+const adminCloseBtn = document.getElementById('admin-close');
+const adminFilterInput = document.getElementById('admin-filter');
+let withdrawalsListener = null;
+let usersListener = null;
+let depositsListener = null;
+
+adminCloseBtn.addEventListener('click', ()=>{ adminPanel.style.display='none'; adminPanel.setAttribute('aria-hidden','true'); });
+
+adminConnectBtn.addEventListener('click', async ()=>{
+  // Try tonConnect first
+  let connected = null;
+  try{
+    await tonConnectUI.connectWallet();
+    // try to read wallet address from tonConnectUI
+    if(tonConnectUI && tonConnectUI.activeConnection && tonConnectUI.activeConnection.account) {
+      connected = tonConnectUI.activeConnection.account;
+    }
+  }catch(e){ /* ignore */ }
+
+  if(!connected){
+    connected = prompt('Подключите админ-кошелёк: вставьте адрес кошелька вручную (или нажмите Отмена):', '');
+  }
+  if(!connected) return alert('Подключение админ-кошелька отменено.');
+  adminWallet = connected;
+  // check match
+  if(adminWallet === OWNER_TON_WALLET){
+    isAdmin = true;
+    adminPanel.style.display='block';
+    adminPanel.setAttribute('aria-hidden','false');
+    adminStatus.textContent = 'Админ: подключён';
+    adminStatus.classList.remove('pill'); adminStatus.classList.add('ok');
+    startAdminListeners();
+  } else {
+    alert('Адрес не совпадает с владельцем. Доступ запрещён.');
+  }
+});
+
+adminFilterInput.addEventListener('input', () => { // simple re-render filtering
+  renderAdminUsers();
+  renderAdminWithdrawals();
+  renderAdminDeposits();
+});
+
+/* Admin listeners & renderers */
+function startAdminListeners(){
+  // withdrawals
+  const wref = db.ref('withdrawals');
+  if(withdrawalsListener) wref.off('value', withdrawalsListener);
+  withdrawalsListener = wref.on('value', snap=>{ renderAdminWithdrawalsFromSnapshot(snap); });
+
+  const uref = db.ref('users');
+  if(usersListener) uref.off('value', usersListener);
+  usersListener = uref.on('value', snap=>{ renderAdminUsersFromSnapshot(snap); });
+
+  const dref = db.ref('depositRequests');
+  if(depositsListener) dref.off('value', depositsListener);
+  depositsListener = dref.on('value', snap=>{ renderAdminDepositsFromSnapshot(snap); });
+}
+
+function renderAdminWithdrawalsFromSnapshot(snap){
+  const data = [];
+  snap.forEach(ch => { data.push({ id: ch.key, val: ch.val() }); });
+  window.__admin_withdrawals = data; // cache for filtering
+  renderAdminWithdrawals();
+}
+
+function renderAdminUsersFromSnapshot(snap){
+  const data = [];
+  snap.forEach(ch => { data.push({ uid: ch.key, val: ch.val() }); });
+  window.__admin_users = data;
+  renderAdminUsers();
+}
+
+function renderAdminDepositsFromSnapshot(snap){
+  const data = [];
+  snap.forEach(ch => { data.push({ id: ch.key, val: ch.val() }); });
+  window.__admin_deposits = data;
+  renderAdminDeposits();
+}
+
+function matchesFilter(text){
+  const filter = (adminFilterInput.value || '').toLowerCase().trim();
+  if(!filter) return true;
+  return (''+text).toLowerCase().includes(filter);
+}
+
+function renderAdminWithdrawals(){
+  renderAdminWithdrawalsFromCache();
+}
+function renderAdminWithdrawalsFromCache(){
+  const root = document.getElementById('admin-withdrawals');
+  root.innerHTML = '';
+  const list = window.__admin_withdrawals || [];
+  list.slice().reverse().forEach(item => {
+    const v = item.val;
+    if(!matchesFilter(v.uid || v.address || '')) return;
+    const tr = document.createElement('tr');
+    const uid = v.uid || '';
+    const wallet = v.wallet || '';
+    const created = new Date(v.createdAt).toLocaleString();
+    tr.innerHTML = `<td>${item.id}</td><td class="small-muted">${created}</td><td>${uid}</td><td>${wallet||v.address}</td><td>${v.amount} TON</td><td>${v.status}</td>`;
+    const actionsTd = document.createElement('td');
+    const approve = document.createElement('button'); approve.className='btn'; approve.textContent='Одобрить';
+    const reject = document.createElement('button'); reject.className='btn secondary'; reject.textContent='Отклонить';
+    const block = document.createElement('button'); block.className='btn danger'; block.textContent='Заблокировать';
+    approve.addEventListener('click', ()=> adminApproveWithdrawal(item.id, v));
+    reject.addEventListener('click', ()=> adminRejectWithdrawal(item.id, v));
+    block.addEventListener('click', ()=> adminBlockUser(v.uid));
+    actionsTd.appendChild(approve); actionsTd.appendChild(reject); actionsTd.appendChild(block);
+    tr.appendChild(actionsTd);
+    root.appendChild(tr);
+  });
+}
+
+function renderAdminUsers(){
+  renderAdminUsersFromCache();
+}
+function renderAdminUsersFromCache(){
+  const root = document.getElementById('admin-users');
+  root.innerHTML = '';
+  const list = window.__admin_users || [];
+  list.slice().reverse().forEach(u => {
+    if(!matchesFilter(u.uid) && !matchesFilter(u.val?.wallet || '')) return;
+    const v = u.val || {};
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${u.uid}</td><td>${v.wallet||''}</td><td>γ:${n(v.balances?.gamma||0)} / э:${n(v.balances?.energy||0)} / TON:${(v.balances?.ton||0).toFixed(2)}</td>`;
+    const actions = document.createElement('td');
+
+    // edit balances button
+    const edit = document.createElement('button'); edit.className='btn'; edit.textContent='Изменить баланс';
+    edit.addEventListener('click', ()=> adminEditBalances(u.uid, v));
+
+    const toggleBlock = document.createElement('button'); toggleBlock.className='btn secondary';
+    toggleBlock.textContent = v.blocked ? 'Разблокировать' : 'Заблокировать';
+    toggleBlock.addEventListener('click', ()=> adminToggleBlock(u.uid, v));
+
+    actions.appendChild(edit); actions.appendChild(toggleBlock);
+    tr.appendChild(actions);
+    root.appendChild(tr);
+  });
+}
+
+function renderAdminDeposits(){
+  renderAdminDepositsFromCache();
+}
+function renderAdminDepositsFromCache(){
+  const root = document.getElementById('admin-deposits');
+  root.innerHTML = '';
+  const list = window.__admin_deposits || [];
+  list.slice().reverse().forEach(item => {
+    const v = item.val;
+    if(!matchesFilter(v.uid || v.wallet || '')) return;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${item.id}</td><td class="small-muted">${new Date(v.createdAt).toLocaleString()}</td><td>${v.uid||''}</td><td>${v.wallet||''}</td><td>${v.amount} TON</td><td>${v.status}</td>`;
+    const actionsTd = document.createElement('td');
+    const viewProof = document.createElement('button'); viewProof.className='btn'; viewProof.textContent='Просмотр';
+    viewProof.addEventListener('click', ()=> {
+      if(v.proofUrl){
+        window.open(v.proofUrl, '_blank');
+      } else {
+        alert('Скрин не прикреплён.');
+      }
+    });
+    const accept = document.createElement('button'); accept.className='btn'; accept.textContent='Зачислить';
+    accept.addEventListener('click', ()=> adminApproveDeposit(item.id, v));
+    const reject = document.createElement('button'); reject.className='btn secondary'; reject.textContent='Отклонить';
+    reject.addEventListener('click', ()=> adminRejectDeposit(item.id, v));
+    actionsTd.appendChild(viewProof); actionsTd.appendChild(accept); actionsTd.appendChild(reject);
+    tr.appendChild(actionsTd);
+    root.appendChild(tr);
+  });
+}
+
+/* Admin actions */
+async function adminApproveWithdrawal(id, rec){
+  if(!confirm('Подтвердить выплату и пометить как "approved"?')) return;
+  try{
+    await db.ref('withdrawals/' + id).update({ status:'approved', processedAt: Date.now(), processedBy: adminWallet });
+    alert('Заявка помечена как approved.');
+  }catch(e){ console.error(e); alert('Ошибка при обновлении'); }
+}
+
+async function adminRejectWithdrawal(id, rec){
+  if(!confirm('Отклонить выплату и вернуть средства пользователю?')) return;
+  try{
+    // set to rejected
+    await db.ref('withdrawals/' + id).update({ status:'rejected', processedAt: Date.now(), processedBy: adminWallet });
+    // return funds to user balances (reverse deduction). We assume user exists.
+    if(rec.uid){
+      const userRefAdmin = db.ref('users/' + rec.uid + '/balances');
+      await userRefAdmin.transaction(curr => {
+        if(!curr) return curr;
+        curr.ton = +( (curr.ton || 0) + (rec.totalDeduct || (rec.amount + (rec.fee||0))) ).toFixed(6);
+        return curr;
+      });
+    }
+    alert('Заявка отклонена и средства возвращены (через транзакцию в БД).');
+  }catch(e){ console.error(e); alert('Ошибка при отклонении'); }
+}
+
+async function adminBlockUser(uid){
+  if(!uid) return alert('UID отсутствует');
+  const ok = confirm('Заблокировать пользователя ' + uid + '?');
+  if(!ok) return;
+  try{
+    await db.ref('users/' + uid).update({ blocked: true, blockedAt: Date.now(), blockedBy: adminWallet });
+    alert('Пользователь заблокирован.');
+  }catch(e){ console.error(e); alert('Ошибка при блокировке'); }
+}
+
+async function adminToggleBlock(uid, userObj){
+  try{
+    const newVal = !userObj?.blocked;
+    await db.ref('users/' + uid).update({ blocked: newVal, blockedAt: newVal ? Date.now() : null, blockedBy: newVal ? adminWallet: null });
+    alert('Статус блокировки изменён.');
+  }catch(e){ console.error(e); alert('Ошибка при смене статуса'); }
+}
+
+async function adminEditBalances(uid, userObj){
+  try{
+    const newGamma = +prompt('Новая сумма γ (текущее: ' + (userObj?.balances?.gamma||0) + ')', userObj?.balances?.gamma || 0);
+    const newEnergy = +prompt('Новая энергия (текущее: ' + (userObj?.balances?.energy||0) + ')', userObj?.balances?.energy || 0);
+    const newTon = +prompt('Новый TON (текущее: ' + ((userObj?.balances?.ton||0).toFixed(2)) + ')', userObj?.balances?.ton || 0);
+    if(isNaN(newGamma) || isNaN(newEnergy) || isNaN(newTon)) return alert('Некорректные значения');
+    await db.ref('users/' + uid + '/balances').set({ gamma: Number(newGamma), energy: Number(newEnergy), ton: Number(newTon) });
+    alert('Баланс обновлен.');
+  }catch(e){ console.error(e); alert('Ошибка при редактировании баланса'); }
+}
+
+async function adminApproveDeposit(id, rec){
+  if(!confirm('Подтвердить депозит и зачислить (admin)?')) return;
+  try{
+    // mark deposit approved
+    await db.ref('depositRequests/' + id).update({ status:'approved', processedAt: Date.now(), processedBy: adminWallet });
+    // credit user
+    if(rec.uid){
+      await db.ref('users/' + rec.uid + '/balances').transaction(curr => {
+        if(!curr) curr = { energy:0, gamma:0, ton:0 };
+        curr.ton = +( (curr.ton || 0) + (rec.amount * 0.9) ).toFixed(6); // 10% commission
+        return curr;
+      });
+    }
+    alert('Депозит подтверждён и зачислен (90%).');
+  }catch(e){ console.error(e); alert('Ошибка при подтверждении депозита'); }
+}
+
+async function adminRejectDeposit(id, rec){
+  if(!confirm('Отклонить депозит?')) return;
+  try{
+    await db.ref('depositRequests/' + id).update({ status:'rejected', processedAt: Date.now(), processedBy: adminWallet });
+    alert('Депозит отклонён.');
+  }catch(e){ console.error(e); alert('Ошибка при отклонении депозита'); }
+}
+
+/* ========= HELPERS ========= */
 function getApi(path){ const origin = window.location.origin; return (window.RENDER_BASE || origin.replace(/\/$/,'')).replace(/\/$/,'') + path; }
 
 /* ========= INIT ========= */
@@ -523,103 +848,32 @@ function getApi(path){ const origin = window.location.origin; return (window.REN
   firebase.initializeApp(FIREBASE_CONFIG);
   auth = firebase.auth();
   db = firebase.database();
-  await auth.signInAnonymously();
-  appUser.uid = auth.currentUser.uid;
-  userRef = db.ref('users/'+appUser.uid);
-
-  const snap = await userRef.get();
-  if(snap.exists()) {
-    // merge loaded data safely
-    const data = snap.val();
-    appUser = {...appUser, ...data};
-    // ensure balances numbers
-    appUser.balances = appUser.balances || { energy:0, gamma:0, ton:0 };
-    appUser.balances.energy = Number(appUser.balances.energy || 0);
-    appUser.balances.gamma = Number(appUser.balances.gamma || 0);
-    appUser.balances.ton = Number(appUser.balances.ton || 0);
-  } else {
-    await userRef.set(appUser);
-  }
-
+  storage = firebase.storage();
   tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: 'https://ton-connect.github.io/demo-dapp-with-react-ui/tonconnect-manifest.json', buttonRootId: 'tonconnect' });
 
-  // start loops and render UI
+  await auth.signInAnonymously();
+  appUser.uid = auth.currentUser.uid;
+  userRef = db.ref('users/' + appUser.uid);
+
+  // load or create
+  try{
+    const snap = await userRef.get();
+    if(snap.exists()){
+      const data = snap.val();
+      appUser = { ...appUser, ...data };
+      appUser.balances = appUser.balances || { energy:0, gamma:0, ton:0 };
+      appUser.balances.energy = Number(appUser.balances.energy || 0);
+      appUser.balances.gamma = Number(appUser.balances.gamma || 0);
+      appUser.balances.ton = Number(appUser.balances.ton || 0);
+    } else {
+      await userRef.set(appUser);
+    }
+  }catch(e){ console.error('init db load error', e); }
+
+  // start loops and UI
   tickEnergy();
   renderAll();
   subscribeLeaderboard();
+
+  // mark UI if wallet matches admin when user connects wallet later (optional)
 })();
-</script>
-
-<!-- ВСТАВКА РЕКЛАМЫ: безопасно, в самый низ; навигация приподнимается -->
-<script id="ad-inject">
-(function(){
-  try{
-    if(document.getElementById('aads-container')) return;
-
-    var adHeight = 90; // px
-    var gap = 6;
-
-    // add marker on body so we can add bottom padding if needed
-    document.body.classList.add('has-sticky-ad');
-
-    // lift nav above banner by setting its bottom
-    var css = '.nav{bottom:' + (adHeight + gap) + 'px !important; z-index:100000 !important;}';
-    var style = document.createElement('style'); style.id = 'aads-nav-style';
-    style.appendChild(document.createTextNode(css));
-    document.head.appendChild(style);
-
-    var ad = document.createElement('div');
-    ad.id = 'aads-container';
-    ad.style.position = 'fixed';
-    ad.style.left = '0';
-    ad.style.right = '0';
-    ad.style.bottom = '0';
-    ad.style.zIndex = '99990';
-    ad.style.display = 'flex';
-    ad.style.justifyContent = 'center';
-    ad.style.pointerEvents = 'auto';
-    ad.style.padding = '6px 8px';
-    ad.style.background = 'transparent';
-
-    var inner = document.createElement('div');
-    inner.style.width = '100%';
-    inner.style.maxWidth = '1100px';
-    inner.style.margin = 'auto';
-    inner.style.textAlign = 'center';
-
-    var frameWrap = document.createElement('div');
-    frameWrap.id = 'frame';
-    frameWrap.style.width = '100%';
-    frameWrap.style.margin = 'auto';
-    frameWrap.style.display = 'block';
-    frameWrap.style.height = adHeight + 'px';
-    frameWrap.style.overflow = 'hidden';
-
-    var iframe = document.createElement('iframe');
-    iframe.setAttribute('data-aa','2410989');
-    iframe.src = '//acceptable.a-ads.com/2410989/?size=Adaptive';
-    iframe.style.border = '0';
-    iframe.style.padding = '0';
-    iframe.style.width = '100%';
-    iframe.style.height = adHeight + 'px';
-    iframe.style.overflow = 'hidden';
-    iframe.style.display = 'block';
-    iframe.style.background = 'transparent';
-
-    frameWrap.appendChild(iframe);
-    inner.appendChild(frameWrap);
-    ad.appendChild(inner);
-
-    if(document.readyState === 'loading'){
-      document.addEventListener('DOMContentLoaded', function(){ document.body.appendChild(ad); });
-    } else {
-      document.body.appendChild(ad);
-    }
-  }catch(e){
-    console.error('ad-inject error', e);
-  }
-})();
-</script>
-
-</body>
-</html>
